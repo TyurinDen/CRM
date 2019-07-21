@@ -66,4 +66,6 @@ public interface ClientRepositoryCustom {
 
 	List<Client> getClientsInStatusOrderedByHistory(Status status, SortingType order, boolean isAdmin, User user);
 
+	List<Object[]> getClientsByCommandFromVkInfoBot(String sqlQuery);
+
 }

@@ -450,4 +450,11 @@ public class ClientRepositoryImpl implements ClientRepositoryCustom {
                         .getResultList();
         return orderedClients;
     }
+
+    @Override
+    public List<Object[]> getClientsByCommandFromVkInfoBot(String sqlQuery) {
+        Query query = entityManager.createNativeQuery(sqlQuery);
+        return (List<Object[]>) query.getResultList();
+    }
+
 }
