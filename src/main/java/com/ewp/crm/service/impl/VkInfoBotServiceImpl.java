@@ -9,9 +9,12 @@ import com.squareup.okhttp.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.stereotype.Service;
 
 import java.util.*;
 
+@Service
 public class VkInfoBotServiceImpl implements VkInfoBotService {
     private static Logger logger = LoggerFactory.getLogger(VkInfoBotServiceImpl.class.getName());
     private final String VK_URL_API;
@@ -24,7 +27,7 @@ public class VkInfoBotServiceImpl implements VkInfoBotService {
     private Set<Command> commandSet;
 
     @Autowired
-    public VkInfoBotServiceImpl(VkInfoBotConfig vkInfoBotConfig, ClientRepositoryCustom clientCustomRepository) {
+    public VkInfoBotServiceImpl(VkInfoBotConfig vkInfoBotConfig, @Qualifier("ClientRepositoryCustom") ClientRepositoryCustom clientCustomRepository) {
         String SQL_QUERY = "SELECT\n" +
                 "    cl.client_id AS id,\n" +
                 "    CONCAT(cl.last_name, ' ', cl.first_name) AS fio,\n" +
@@ -80,10 +83,28 @@ public class VkInfoBotServiceImpl implements VkInfoBotService {
         }
     }
 
+    private List<String> findClients(String messageText) {
+        final String NOTHING_FOUND = "Ничего не найдено";
+        final String INCORRECT_COMMAND = "Команда некорректна. См. справку: ? (help, помощь)";
+        Command command = getCommand(messageText.trim().toLowerCase());
+        if (command != null) {
+            System.out.println(command.getSqlQuery());
+            List<Object[]> clientList = clientCustomRepository.getClientsByCommandFromVkInfoBot(command.getSqlQuery());
+            if (clientList.isEmpty()) {
+                return Collections.singletonList(NOTHING_FOUND);
+            }
+            return formTextViewOfClientList(clientList);
+        } else {
+            return Collections.singletonList(INCORRECT_COMMAND);
+        }
+    }
+
     private List<String> packClientList(Iterable<String> clientsList) {
+        // упаковывает клиентов в строку по MAX_RESULTS_PER_MESSAGE штук,
+        // чтобы не отправлять каждого отдельным сообщением
         StringBuilder listItem = new StringBuilder();
-        final int MAX_MESSAGE_LENGTH = 4096;
-        final int MAX_RESULTS_PER_MESSAGE = 5;
+        final int MAX_MESSAGE_LENGTH = 4096; // ограничение на длину сообщения ВК
+        final int MAX_RESULTS_PER_MESSAGE = 4;
         int resultsPerMessage = 0;
         int messageLength = 0;
         List<String> packedClientList = new ArrayList<>();
@@ -106,59 +127,9 @@ public class VkInfoBotServiceImpl implements VkInfoBotService {
         return packedClientList;
     }
 
-    private List<String> findClients(String messageText) {
-        final String NOTHING_FOUND = "Ничего не найдено";
-        final String INCORRECT_COMMAND = "Команда некорректна. См. справку: ? (help, помощь)";
-        Command command = getCommand(messageText.trim().toLowerCase());
-        if (command != null) {
-            System.out.println(command.getSqlQuery());
-            List<Object[]> clientList = clientCustomRepository.getClientsByCommandFromVkInfoBot(command.getSqlQuery());
-            if (clientList.isEmpty()) {
-                return Collections.singletonList(NOTHING_FOUND);
-            }
-            return formTextViewOfClientList(clientList);
-        } else {
-            return Collections.singletonList(INCORRECT_COMMAND);
-        }
-    }
-
-    @Override
-    public void sendHelpMessage(Message message) {
-        final String HELP_MESSAGE = "*************** VkInfoBot - поиск клиентов в CRM ***************\n\n" +
-                " Бот понимает следующие команды (регистр игнорируется):\n" +
-                "--------------------------------------------------------------------------------------------------\n" +
-                "id [i, ид, и]: поиск по идентефикатору.\n" +
-                "id 123: найти клиента с ID равным 123.\n" +
-                "id *123: найти клиента с ID, заканчивающимся на 123.\n" +
-                "id 123*: найти клиента с ID, начинающимся со 123.\n" +
-                "--------------------------------------------------------------------------------------------------\n" +
-                "cln [слн]: поиск по городу и фамилии.\n" +
-                "cln Москва Иванов: найти клиентов из Москвы с фамилией\n" +
-                "Иванов. Или cl м* и*: найти клиентов из города на \'м\'\n" +
-                "с фамилией, начинающейся на \'и\'.\n" +
-                "--------------------------------------------------------------------------------------------------\n" +
-                "city [c, сити, город]: поиск по городу.\n" +
-                "--------------------------------------------------------------------------------------------------\n" +
-                "ln [lastname, фамилия, лн]: поиск по фамилии.\n" +
-                "--------------------------------------------------------------------------------------------------\n" +
-                "Все команды поддерживают символ \'*\' в аргументах.\n\n" +
-                "Количество результатов ограничено двадцатью, но его\n" +
-                "можно уменьшить, передав еще один аргумент команде:\n" +
-                "id *123 5 - ограничить вывод пятью результатами.\n";
-        message.setText(HELP_MESSAGE);
-        sendMessage(message);
-    }
-
-    private Command getCommand(String messageText) {
-        for (Command command : commandSet) {
-            if (command.checkSyntax(messageText)) {
-                return command;
-            }
-        }
-        return null;
-    }
-
     private List<String> formTextViewOfClientList(List<Object[]> clients) {
+        //формирует читабельное представление результата native SQL запроса
+        //необходим, так как native SQL запрос к БД возвращает List<Object[]>
         String[] prefixes = new String[]{"ID:", "ФИО:", "", "Живет:", "Описание:", "Комментарий:",
                 "Отложенный комментарий:", "Менеджер:", "Ментор:"};
         int counter = 1;
@@ -178,6 +149,15 @@ public class VkInfoBotServiceImpl implements VkInfoBotService {
             stringBuilder = new StringBuilder();
         }
         return clientsList;
+    }
+
+    private Command getCommand(String messageText) {
+        for (Command command : commandSet) {
+            if (command.checkSyntax(messageText)) {
+                return command;
+            }
+        }
+        return null;
     }
 
     private void sendMessage(Message message) {
@@ -209,5 +189,32 @@ public class VkInfoBotServiceImpl implements VkInfoBotService {
             logger.error("Unable to send message! ", e);
         }
 
+    }
+
+    @Override
+    public void sendHelpMessage(Message message) {
+        final String HELP_MESSAGE = "*************** VkInfoBot - поиск клиентов в CRM ***************\n\n" +
+                " Бот понимает следующие команды (регистр игнорируется):\n" +
+                "--------------------------------------------------------------------------------------------------\n" +
+                "id [i, ид, и]: поиск по идентефикатору.\n" +
+                "id 123: найти клиента с ID равным 123.\n" +
+                "id *123: найти клиента с ID, заканчивающимся на 123.\n" +
+                "id 123*: найти клиента с ID, начинающимся со 123.\n" +
+                "--------------------------------------------------------------------------------------------------\n" +
+                "cln [слн]: поиск по городу и фамилии.\n" +
+                "cln Москва Иванов: найти клиентов из Москвы с фамилией\n" +
+                "Иванов. Или cl м* и*: найти клиентов из города на \'м\'\n" +
+                "с фамилией, начинающейся на \'и\'.\n" +
+                "--------------------------------------------------------------------------------------------------\n" +
+                "city [c, сити, город]: поиск по городу.\n" +
+                "--------------------------------------------------------------------------------------------------\n" +
+                "ln [lastname, фамилия, лн]: поиск по фамилии.\n" +
+                "--------------------------------------------------------------------------------------------------\n" +
+                "Все команды поддерживают символ \'*\' в аргументах.\n\n" +
+                "Количество результатов ограничено двадцатью, но его\n" +
+                "можно уменьшить, передав еще один аргумент команде:\n" +
+                "id *123 5 - ограничить вывод пятью результатами.\n";
+        message.setText(HELP_MESSAGE);
+        sendMessage(message);
     }
 }

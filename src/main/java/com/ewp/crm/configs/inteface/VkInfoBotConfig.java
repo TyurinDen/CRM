@@ -1,5 +1,8 @@
 package com.ewp.crm.configs.inteface;
 
+import org.springframework.context.annotation.Configuration;
+
+@Configuration
 public interface VkInfoBotConfig {
 
     String getVkInfoBotClubId();

@@ -7,6 +7,11 @@ import lombok.NoArgsConstructor;
 
 import java.util.List;
 
+/**
+ * Класс, описывающий объект новое сообщение (message_new) от VK API
+ *
+ * См. документацию VK API: https://vk.com/dev/objects/message
+ */
 @Data
 @Builder
 @NoArgsConstructor

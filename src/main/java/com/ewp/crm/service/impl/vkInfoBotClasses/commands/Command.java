@@ -5,10 +5,17 @@ import lombok.RequiredArgsConstructor;
 
 import java.util.Arrays;
 
+/**
+ * Класс, описывающий команды бота (VkInfoBot)
+ * Проверяет корректность команды и формирует часть SQL запроса, которая добавляется
+ * к basisSqlQuery
+ *
+ * @author Tyurin Denis https://vk.com/dentttt
+ */
 @Data
 @RequiredArgsConstructor
 public class Command {
-    private final String commandNameRegex; //regex возможных имен команды
+    private final String commandNameRegex;
     private final int numberOfArgs;
     private final String[] argsRegex;
     private final String RESULT_LIMIT_REGEX = "^0*[0-9]{1,3}$";
