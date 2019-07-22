@@ -1,54 +1,73 @@
 package com.ewp.crm.models;
 
 import com.ewp.crm.models.whatsapp.WhatsappMessage;
-import com.ewp.crm.utils.patterns.ValidationPattern;
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import org.apache.commons.lang3.builder.DiffBuilder;
 import org.apache.commons.lang3.builder.DiffResult;
 import org.apache.commons.lang3.builder.Diffable;
 import org.apache.commons.lang3.builder.ToStringStyle;
+import org.hibernate.annotations.BatchSize;
 import org.hibernate.annotations.Fetch;
 import org.hibernate.annotations.FetchMode;
 import org.hibernate.annotations.Formula;
-import org.hibernate.validator.constraints.Email;
 
 import javax.persistence.*;
 import javax.validation.constraints.NotNull;
-import javax.validation.constraints.Size;
 import java.io.Serializable;
 import java.time.LocalDate;
 import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 
 @SuppressWarnings("unused")
 @Entity
 @Table(name = "client")
+@JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
 public class Client implements Serializable, Diffable<Client> {
 
-	@Id
+    @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-	@Column(name = "client_id")
-	private Long id;
+    @Column(name = "client_id")
+    private Long id;
 
-	@NotNull
-	@Column(name = "first_name", nullable = false)
-	private String name;
+    @NotNull
+    @Column(name = "first_name", nullable = false)
+    private String name;
 
     @Column(name = "middle_name")
     private String middleName;
 
-	@Column(name = "last_name")
-	private String lastName;
+    @Column(name = "last_name")
+    private String lastName;
 
-    @Column(name = "phoneNumber", unique = true)
-    private String phoneNumber;
+    /**
+     * We reduce number of requests with FetchType.EAGER.
+     * ElementCollection uses cascadeType.ALL and orphanRemoval = true by default.
+     * We use BatchSize to control our queries and not request too many entities.
+     * OrderColumn used to maintain the persistent order of a list.
+     */
+    @ElementCollection(fetch = FetchType.EAGER)
+    @CollectionTable(name="client_phones", joinColumns = @JoinColumn(name="client_id"))
+    @Column(name="client_phone", unique = true)
+    @OrderColumn(name = "numberInList")
+    @BatchSize(size = 30)
+    private List<String> clientPhones = new ArrayList<>();
 
-    @Size(max = 50)
-    @Email(regexp = ValidationPattern.EMAIL_PATTERN)
-    @Column(name = "email", length = 50, unique = true)
-    private String email;
+    /**
+     * We reduce number of requests with FetchType.EAGER.
+     * ElementCollection uses cascadeType.ALL and orphanRemoval = true by default.
+     * We use BatchSize to control our queries and not request too many entities.
+     * OrderColumn used to maintain the persistent order of a list.
+     */
+    @ElementCollection(fetch = FetchType.EAGER)
+    @CollectionTable(name="client_emails", joinColumns = @JoinColumn(name="client_id"))
+    @Column(name="client_email", unique = true)
+    @OrderColumn(name = "numberInList")
+    @BatchSize(size = 30)
+    private List<String> clientEmails = new ArrayList<>();
 
     @Column(name = "skype")
     private String skype = "";
@@ -100,71 +119,126 @@ public class Client implements Serializable, Diffable<Client> {
     @Column(name = "postpone_comment")
     private String postponeComment;
 
+    /**
+     * We use CascadeType.ALL to manage entity through Client's entity.
+     * OrphanRemoval needs for a disconnected instance is automatically removed.
+     * OneToMany uses FetchType.LAZY by default.
+     * We use BatchSize to control our queries and not request too many entities.
+     */
     @JsonIgnore
-    @OneToMany(cascade = CascadeType.ALL)
+    @OneToMany(cascade = CascadeType.ALL, orphanRemoval = true)
+    @BatchSize(size = 50)
     @JoinTable(name = "client_whatsapp_message",
             joinColumns = {@JoinColumn(name = "client_id",foreignKey = @ForeignKey(name = "FK_WHATSAPP_MESSAGE_CLIENT"))},
             inverseJoinColumns = {@JoinColumn(name = "whatsapp_message_number",foreignKey = @ForeignKey(name = "FK_WHATSAPP_MESSAGE"))})
     private List<WhatsappMessage> whatsappMessages = new ArrayList<>();
 
-    @ManyToOne
+    /**
+     * We use FetchType.LAZY for lazy initialization.
+     */
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "status_id")
     @JoinTable(name = "status_clients",
             joinColumns = {@JoinColumn(name = "user_id", foreignKey = @ForeignKey(name = "FK_USER"))},
             inverseJoinColumns = {@JoinColumn(name = "status_id", foreignKey = @ForeignKey(name = "FK_STATUS"))})
     private Status status;
 
+    /**
+     * ManyToOne uses fetchType.EAGER by default.
+     */
     @ManyToOne
     @JoinColumn(name = "owner_user_id")
     private User ownerUser;
 
+    /**
+     * ManyToOne uses fetchType.EAGER by default.
+     */
+    @ManyToOne
+    @JoinColumn(name = "owner_mentor_id")
+    private User ownerMentor;
+
+    /**
+     * OrderBy determines the ordering of the elements.
+     * We use CascadeType.ALL to manage entity through Client's entity.
+     * OrphanRemoval needs for a disconnected instance is automatically removed.
+     * OneToMany uses FetchType.LAZY by default.
+     * We use BatchSize to control our queries and not request too many entities.
+     */
     @JsonIgnore
     @OrderBy("date DESC")
-    @OneToMany
+    @OneToMany(cascade = CascadeType.ALL, orphanRemoval = true)
+    @BatchSize(size = 25)
     @JoinTable(name = "client_comment",
             joinColumns = {@JoinColumn(name = "client_id", foreignKey = @ForeignKey(name = "FK_COMMENT_CLIENT"))},
             inverseJoinColumns = {@JoinColumn(name = "comment_id", foreignKey = @ForeignKey(name = "FK_COMMENT"))})
     private List<Comment> comments = new ArrayList<>();
 
-    @OneToMany(cascade = CascadeType.ALL)
-    @JoinTable(name = "client_notification",
-            joinColumns = {@JoinColumn(name = "client_id", foreignKey = @ForeignKey(name = "FK_NOTIFICATION_CLIENT"))},
-            inverseJoinColumns = {@JoinColumn(name = "notification_id", foreignKey = @ForeignKey(name = "FK_NOTIFICATION"))})
-    private List<Notification> notifications = new ArrayList<>();
-
-    @OneToMany(cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.EAGER)
-    @Fetch(value = FetchMode.JOIN)
+    /**
+     * OrderBy determines the ordering of the elements.
+     * We use CascadeType.ALL to manage entity through Client's entity.
+     * OrphanRemoval needs for a disconnected instance is automatically removed.
+     * OneToMany uses FetchType.LAZY by default.
+     * We use BatchSize to control our queries and not request too many entities.
+     */
+    @OneToMany(cascade = CascadeType.ALL, orphanRemoval = true)
     @JoinTable(name = "history_client",
             joinColumns = {@JoinColumn(name = "client_id", foreignKey = @ForeignKey(name = "FK_CLIENT"))},
             inverseJoinColumns = {@JoinColumn(name = "history_id", foreignKey = @ForeignKey(name = "FK_HISTORY"))})
     @OrderBy("id DESC")
+    @BatchSize(size = 25)
     private List<ClientHistory> history = new ArrayList<>();
 
-    @OneToMany(cascade = CascadeType.ALL,fetch = FetchType.LAZY)
-    @Fetch(value = FetchMode.SUBSELECT)
+    /**
+     * OrderBy determines the ordering of the elements.
+     * We use CascadeType.ALL to manage entity through Client's entity.
+     * OrphanRemoval needs for a disconnected instance is automatically removed.
+     * OneToMany uses FetchType.LAZY by default.
+     * We use BatchSize to control our queries and not request too many entities.
+     */
+    @OneToMany(cascade = CascadeType.ALL, orphanRemoval = true)
     @JoinTable(name = "feedback_client",
             joinColumns = {@JoinColumn(name = "client_id", foreignKey = @ForeignKey(name = "FK_CLIENT"))},
             inverseJoinColumns = {@JoinColumn(name = "feedback_id", foreignKey = @ForeignKey(name = "FK_FEEDBACK"))})
     @OrderBy("id DESC")
+    @BatchSize(size = 25)
     private List<ClientFeedback> feedback = new ArrayList<>();
 
-    @Column
+    /**
+     * We use CascadeType.ALL to manage entity through Client's entity.
+     * OrphanRemoval needs for a disconnected instance is automatically removed.
+     * OneToMany uses FetchType.LAZY by default.
+     * We use BatchSize to control our queries and not request too many entities.
+     */
     @OneToMany(cascade = CascadeType.ALL, orphanRemoval = true)
     @JoinTable(name = "client_job",
             joinColumns = {@JoinColumn(name = "client_id", foreignKey = @ForeignKey(name = "FK_CLIENT"))},
             inverseJoinColumns = {@JoinColumn(name = "job_id", foreignKey = @ForeignKey(name = "FK_JOB"))})
+    @BatchSize(size = 25)
     private List<Job> jobs = new ArrayList<>();
 
-    @OneToMany(cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.EAGER)
-    @Fetch(value = FetchMode.SUBSELECT)
+    /**
+     * We use CascadeType.ALL to manage entity through Client's entity.
+     * OrphanRemoval needs for a disconnected instance is automatically removed.
+     * We use FetchType.EAGER because this field is used in Transactional method and have to initialize before.
+     * We use BatchSize to control our queries and not request too many entities.
+     */
+    @OneToMany(fetch = FetchType.EAGER, cascade = CascadeType.ALL, orphanRemoval = true)
+    @Fetch(value = FetchMode.SELECT)
+    @BatchSize(size = 30)
     @JoinTable(name = "client_social_network",
             joinColumns = {@JoinColumn(name = "client_id", foreignKey = @ForeignKey(name = "FK_CLIENT"))},
             inverseJoinColumns = {@JoinColumn(name = "social_network_id", foreignKey = @ForeignKey(name = "FK_SOCIAL_NETWORK"))})
     private List<SocialProfile> socialProfiles = new ArrayList<>();
 
+    /**
+     * We use CascadeType.ALL to manage entity through Client's entity.
+     * OrphanRemoval needs for a disconnected instance is automatically removed.
+     * OneToMany uses FetchType.LAZY by default.
+     * We use BatchSize to control our queries and not request too many entities.
+     */
     @JsonIgnore
-    @OneToMany(cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.EAGER)
-    @Fetch(value = FetchMode.SUBSELECT)
+    @OneToMany(cascade = CascadeType.ALL, orphanRemoval = true)
+    @BatchSize(size = 50)
     @JoinTable(name = "client_sms_info",
             joinColumns = {@JoinColumn(name = "client_id", foreignKey = @ForeignKey(name = "FK_CLIENT"))},
             inverseJoinColumns = {@JoinColumn(name = "sms_info_id", foreignKey = @ForeignKey(name = "FK_SMS_INFO"))})
@@ -174,80 +248,76 @@ public class Client implements Serializable, Diffable<Client> {
     @Column(name = "client_description_comment", length = 1500)
     private String clientDescriptionComment;
 
+    /**
+     * We use CascadeType.ALL to manage entity through Client's entity.
+     * OrphanRemoval needs for a disconnected instance is automatically removed.
+     * OneToMany uses FetchType.LAZY by default.
+     */
     @JsonIgnore
-    @OneToMany(cascade = CascadeType.ALL, mappedBy = "client")
+    @OneToMany(mappedBy = "client", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<CallRecord> callRecords = new ArrayList<>();
 
+    /**
+     * We use CascadeType.ALL to manage entity through Client's entity.
+     * OrphanRemoval needs for a disconnected instance is automatically removed.
+     */
     @JsonIgnore
-    @OneToOne(mappedBy = "client")
+    @OneToOne(mappedBy = "client", cascade = CascadeType.ALL, orphanRemoval = true)
     @JoinColumn(name = "student_id")
     private Student student;
 
+    /**
+     * We use CascadeType.ALL to manage entity through Client's entity.
+     * OrphanRemoval needs for a disconnected instance is automatically removed.
+     */
     @JsonIgnore
-    @OneToOne
+    @OneToOne(cascade = CascadeType.ALL, orphanRemoval = true)
     @JoinColumn(name = "slack_invite_link_id")
     private SlackInviteLink slackInviteLink;
+
+    public User getOwnerMentor() {
+        return ownerMentor;
+    }
+
+    public void setOwnerMentor(User ownerMentor) {
+        this.ownerMentor = ownerMentor;
+    }
 
     @Column(name = "live_skype_call")
     private boolean liveSkypeCall;
 
+    /**
+     * We use CascadeType.ALL to manage entity through Client's entity.
+     * OrphanRemoval needs for a disconnected instance is automatically removed.
+     */
     @OneToOne(mappedBy = "client", cascade = CascadeType.ALL, orphanRemoval = true)
     private Passport passport;
 
+    /**
+     * We use CascadeType.ALL to manage entity through Client's entity.
+     * OrphanRemoval needs for a disconnected instance is automatically removed.
+     */
     @OneToOne(mappedBy = "client", cascade = CascadeType.ALL, orphanRemoval = true)
     private ContractLinkData contractLinkData;
 
-    public Client() {
-        this.state = State.NEW;
-        this.dateOfRegistration = ZonedDateTime.now();
-    }
+    @OneToOne(mappedBy = "client", cascade = CascadeType.ALL, orphanRemoval = true)
+    private OtherInformationLinkData otherInformationLinkData;
 
-    public Client(String name, String lastName) {
-        this();
-        this.name = name;
-        this.lastName = lastName;
-    }
+    public Client() {}
 
-    public Client(@NotNull String name, String phoneNumber, ZonedDateTime dateOfRegistration) {
-        this();
-        this.name = name;
-        this.phoneNumber = phoneNumber;
-        this.dateOfRegistration = dateOfRegistration;
-    }
-
-    public Client(String name, String lastName, String phoneNumber, String email, LocalDate birthDate, Sex sex, Status status) {
-        this();
-        this.name = name;
-        this.lastName = lastName;
-        this.phoneNumber = phoneNumber;
-        this.email = email;
-        this.birthDate = birthDate;
-        this.sex = sex;
-        this.status = status;
-    }
-
-    public Client(String name, String lastName, String phoneNumber, String email, LocalDate birthDate, Sex sex) {
-        this();
-        this.name = name;
-        this.lastName = lastName;
-        this.phoneNumber = phoneNumber;
-        this.email = email;
-        this.birthDate = birthDate;
-        this.sex = sex;
-    }
-
-    public Client(String name, String lastName, String phoneNumber, String email, LocalDate birthDate, Sex sex, String city, String country, State state, ZonedDateTime dateOfRegistration) {
-        this();
-        this.name = name;
-        this.lastName = lastName;
-        this.phoneNumber = phoneNumber;
-        this.email = email;
-        this.birthDate = birthDate;
-        this.sex = sex;
-        this.city = city;
-        this.country = country;
-        this.state = state;
-        this.dateOfRegistration = dateOfRegistration;
+    private Client(Builder builder) {
+        name = builder.name;
+        middleName = builder.middleName;
+        lastName = builder.lastName;
+        if (builder.phone != null) clientPhones.add(builder.phone);
+        if (builder.email != null) clientEmails.add(builder.email);
+        skype = builder.skype;
+        birthDate = builder.birthDate;
+        sex = builder.sex;
+        city = builder.city;
+        country = builder.country;
+        state = builder.state;
+        dateOfRegistration = builder.dateOfRegistration;
     }
 
     public List<ClientHistory> getHistory() {
@@ -322,20 +392,28 @@ public class Client implements Serializable, Diffable<Client> {
         this.middleName = middleName;
     }
 
-    public String getPhoneNumber() {
-        return phoneNumber;
+    public Optional<String> getPhoneNumber() {
+        return clientPhones.isEmpty() ? Optional.empty() : Optional.ofNullable(clientPhones.get(0));
     }
 
     public void setPhoneNumber(String phoneNumber) {
-        this.phoneNumber = phoneNumber;
+        if (clientPhones.isEmpty()) {
+            clientPhones.add(phoneNumber);
+        } else {
+            clientPhones.set(0, phoneNumber);
+        }
     }
 
-    public String getEmail() {
-        return email;
+    public Optional<String> getEmail() {
+        return clientEmails.isEmpty() ? Optional.empty() : Optional.ofNullable(clientEmails.get(0));
     }
 
     public void setEmail(String email) {
-        this.email = email;
+        if (clientEmails.isEmpty()) {
+            clientEmails.add(email);
+        } else {
+            clientEmails.set(0, email);
+        }
     }
 
     public ZonedDateTime getPostponeDate() {
@@ -378,7 +456,7 @@ public class Client implements Serializable, Diffable<Client> {
         this.requestFrom = requestFrom;
     }
 
-    public void setAge(byte age) {
+    public void setAge(int age) {
         this.age = age;
     }
 
@@ -534,6 +612,22 @@ public class Client implements Serializable, Diffable<Client> {
         this.contractLinkData = contractLinkData;
     }
 
+    public List<String> getClientPhones() {
+        return clientPhones;
+    }
+
+    public void setClientPhones(List<String> clientPhones) {
+        this.clientPhones = clientPhones;
+    }
+
+    public List<String> getClientEmails() {
+        return clientEmails;
+    }
+
+    public void setClientEmails(List<String> clientEmails) {
+        this.clientEmails = clientEmails;
+    }
+
     public SlackInviteLink getSlackInviteLink() {
         return slackInviteLink;
     }
@@ -541,6 +635,15 @@ public class Client implements Serializable, Diffable<Client> {
     public void setSlackInviteLink(SlackInviteLink slackInviteLink) {
         this.slackInviteLink = slackInviteLink;
     }
+
+    public OtherInformationLinkData getOtherInformationLinkData() {
+        return otherInformationLinkData;
+    }
+
+    public void setOtherInformationLinkData(OtherInformationLinkData otherInformationLinkData) {
+        this.otherInformationLinkData = otherInformationLinkData;
+    }
+
 
     @Override
     public boolean equals(Object o) {
@@ -550,8 +653,6 @@ public class Client implements Serializable, Diffable<Client> {
         return  Objects.equals(id, client.id) &&
                 Objects.equals(name, client.name) &&
                 Objects.equals(lastName, client.lastName) &&
-                Objects.equals(phoneNumber, client.phoneNumber) &&
-                Objects.equals(email, client.email) &&
                 sex == client.sex &&
                 Objects.equals(city, client.city) &&
                 Objects.equals(country, client.country) &&
@@ -562,26 +663,22 @@ public class Client implements Serializable, Diffable<Client> {
                 Objects.equals(postponeDate, client.postponeDate)&&
                 Objects.equals(birthDate, client.birthDate) &&
                 Objects.equals(university, client.university) &&
-                Objects.equals(requestFrom, client.requestFrom);
+                Objects.equals(requestFrom, client.requestFrom) &&
+                Objects.equals(clientEmails, client.clientEmails) &&
+                Objects.equals(clientPhones, client.clientPhones);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(id, name, lastName, phoneNumber, email, skype, sex, city, country,
-                state, jobs, socialProfiles, postponeDate, birthDate, university,requestFrom);
+        return Objects.hash(id, name, lastName, skype, sex, city, country,
+                state, jobs, socialProfiles, postponeDate, birthDate, university, requestFrom, clientEmails, clientPhones);
     }
 
     @Override
     public String toString() {
-        return "Client: id: " + id + "; email: " + email + "; number: " + phoneNumber;
-    }
-
-    public List<Notification> getNotifications() {
-        return notifications;
-    }
-
-    public void setNotifications(List<Notification> notifications) {
-        this.notifications = notifications;
+        return "Client: id: " + id + "; name: " + name + "; email: " +  getEmail().orElse("not found")  + "; phone number: "+ getPhoneNumber().orElse("not found")
+                + "; city: " + Optional.ofNullable(city).orElse("not found") + "; country: " + Optional.ofNullable(country).orElse("not found")
+                + "; request from: " + Optional.ofNullable(requestFrom).orElse("not found") + "; description comment: " + Optional.ofNullable(clientDescriptionComment).orElse("not found");
     }
 
     public List<SMSInfo> getSmsInfo() {
@@ -629,8 +726,6 @@ public class Client implements Serializable, Diffable<Client> {
         return new DiffBuilder(this, client, ToStringStyle.JSON_STYLE)
                 .append("Имя", this.name, client.name)
                 .append("Фамилия", this.lastName, client.lastName)
-                .append("Номер телефона", this.phoneNumber, client.phoneNumber)
-                .append("E-mail", this.email, client.email)
                 .append("Skype", this.skype, client.skype)
                 .append("Дата рождения", this.birthDate, client.birthDate)
                 .append("Пол", this.sex, client.sex)
@@ -646,7 +741,6 @@ public class Client implements Serializable, Diffable<Client> {
         return new DiffBuilder(this, client, ToStringStyle.JSON_STYLE)
                 .append("Имя", this.name, client.name)
                 .append("Фамилия", this.lastName, client.lastName)
-                .append("E-mail", this.email, client.email)
                 .build();
     }
 
@@ -661,4 +755,83 @@ public class Client implements Serializable, Diffable<Client> {
         REFUSED
     }
 
+    public static class Builder {
+
+        private String name;
+        private String middleName;
+        private String lastName;
+        private String phone;
+        private String email;
+        private String skype;
+        private LocalDate birthDate;
+        private Sex sex;
+        private String city;
+        private String country;
+
+        private State state;
+        private ZonedDateTime dateOfRegistration;
+
+        public Builder(String name, String phone, String email) {
+            this.state = State.NEW;
+            this.dateOfRegistration = ZonedDateTime.now();
+            this.name = name;
+            this.phone = phone;
+            this.email = email;
+        }
+
+        public Builder(String name) {
+            this.state = State.NEW;
+            this.dateOfRegistration = ZonedDateTime.now();
+            this.name = name;
+        }
+
+        public Client build() {
+            return new Client(this);
+        }
+
+        public Builder lastName(String lastName) {
+            this.lastName = lastName;
+            return this;
+        }
+
+        public Builder email(String email) {
+            this.email = email;
+            return this;
+        }
+
+        public Builder phone(String phone) {
+            this.phone = phone;
+            return this;
+        }
+
+        public Builder middleName(String middleName) {
+            this.middleName = middleName;
+            return this;
+        }
+
+        public Builder skype(String skype) {
+            this.skype = skype;
+            return this;
+        }
+
+        public Builder birthDate(LocalDate birthDate) {
+            this.birthDate = birthDate;
+            return this;
+        }
+
+        public Builder sex(Sex sex) {
+            this.sex = sex;
+            return this;
+        }
+
+        public Builder city(String city) {
+            this.city = city;
+            return this;
+        }
+
+        public Builder country(String country) {
+            this.country = country;
+            return this;
+        }
+    }
 }

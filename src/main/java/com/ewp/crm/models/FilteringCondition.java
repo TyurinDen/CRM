@@ -1,6 +1,7 @@
 package com.ewp.crm.models;
 
 import java.time.LocalDate;
+import java.util.List;
 
 public class FilteringCondition {
 
@@ -22,11 +23,27 @@ public class FilteringCondition {
 
     private Status status;
 
-    private String selected;
+    private Integer ownerUserId;
+
+    private List<String> selectedCheckbox;
+
+    private String checked;
+
+    private String filetype;
+
+    private String delimeter;
 
     private int pageNumber;
 
     public FilteringCondition() {
+    }
+
+    public Integer getOwnerUserId() {
+        return ownerUserId;
+    }
+
+    public void setOwnerUserId (Integer ownerUserId) {
+        this.ownerUserId = ownerUserId;
     }
 
     public Client.Sex getSex() {
@@ -101,19 +118,43 @@ public class FilteringCondition {
         this.country = country;
     }
 
-    public String getSelected() {
-        return selected;
-    }
-
-    public void setSelected(String selected) {
-        this.selected = selected;
-    }
-
     public int getPageNumber() {
         return pageNumber;
     }
 
     public void setPageNumber(int pageNumber) {
         this.pageNumber = pageNumber;
+    }
+
+    public String getFiletype() {
+        return filetype;
+    }
+
+    public void setFiletype(String filetype) {
+        this.filetype = filetype;
+    }
+
+    public String getDelimeter() {
+        return delimeter;
+    }
+
+    public void setDelimeter(String delimeter) {
+        this.delimeter = delimeter;
+    }
+
+    public List<String> getSelectedCheckbox() {
+        return selectedCheckbox;
+    }
+
+    public void setSelectedCheckbox(List<String> selectedCheckbox) {
+        this.selectedCheckbox = selectedCheckbox;
+    }
+
+    public String getChecked() {
+        return checked;
+    }
+
+    public void setChecked(String checked) {
+        this.checked = checked;
     }
 }

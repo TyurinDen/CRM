@@ -1,14 +1,11 @@
 package com.ewp.crm.controllers.rest;
 
-import com.ewp.crm.models.ClientHistory;
+import com.ewp.crm.models.dto.ClientHistoryDto;
 import com.ewp.crm.service.interfaces.ClientHistoryService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Pageable;
-import org.springframework.data.domain.Sort;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -31,13 +28,8 @@ public class ClientHistoryRestController {
 	}
 
 	@GetMapping("/getHistory/{clientId}")
-	public ResponseEntity getClientHistory(@PathVariable("clientId") long id, @RequestParam("page")int page) {
-		Pageable pageable = new PageRequest(page, pageSize, new Sort(new Sort.Order(Sort.Direction.DESC,"id")));
-		List<ClientHistory> clientHistory = clientHistoryService.getAllClientById(id, pageable);
-		if (clientHistory == null || clientHistory.isEmpty()) {
-			logger.info("no more history for client id " + id);
-			return ResponseEntity.notFound().build();
-		}
+	public ResponseEntity getClientHistory(@PathVariable("clientId") long id, @RequestParam("page")int page, @RequestParam("isAsc")boolean isAsc) {
+		List<ClientHistoryDto> clientHistory = clientHistoryService.getAllDtoByClientId(id, page, pageSize, isAsc);
 		return ResponseEntity.ok(clientHistory);
 	}
 

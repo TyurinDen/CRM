@@ -1,40 +1,49 @@
 package com.ewp.crm.service.impl;
 
 import com.ewp.crm.exceptions.status.StatusExistsException;
-import com.ewp.crm.models.SortedStatuses;
+import com.ewp.crm.models.*;
 import com.ewp.crm.models.SortedStatuses.SortingType;
-import com.ewp.crm.models.Status;
-import com.ewp.crm.models.User;
+import com.ewp.crm.models.dto.StatusDtoForBoard;
+import com.ewp.crm.models.dto.StatusPositionIdNameDTO;
 import com.ewp.crm.repository.interfaces.SortedStatusesRepository;
-import com.ewp.crm.repository.interfaces.StatusDAO;
-import com.ewp.crm.service.interfaces.ClientService;
-import com.ewp.crm.service.interfaces.ProjectPropertiesService;
-import com.ewp.crm.service.interfaces.StatusService;
+import com.ewp.crm.repository.interfaces.StatusRepository;
+import com.ewp.crm.service.interfaces.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.core.env.Environment;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.stereotype.Service;
 
-import java.util.List;
-import java.util.Objects;
-import java.util.Optional;
+import java.math.BigInteger;
+import java.time.ZonedDateTime;
+import java.util.*;
 
 @Service
 public class StatusServiceImpl implements StatusService {
-	private final StatusDAO statusDAO;
+	private final StatusRepository statusDAO;
 	private ClientService clientService;
 	private final ProjectPropertiesService propertiesService;
 	private final SortedStatusesRepository sortedStatusesRepository;
+	private final RoleService roleService;
+	private final UserService userService;
+	private final ClientStatusChangingHistoryService clientStatusChangingHistoryService;
+	private Environment env;
 
 
 	private static Logger logger = LoggerFactory.getLogger(StatusServiceImpl.class);
 
 	@Autowired
-	public StatusServiceImpl(StatusDAO statusDAO, ProjectPropertiesService propertiesService, SortedStatusesRepository sortedStatusesRepository) {
+	public StatusServiceImpl(StatusRepository statusDAO, ProjectPropertiesService propertiesService,
+							 SortedStatusesRepository sortedStatusesRepository, RoleService roleService,
+							 Environment env, UserService userService, ClientStatusChangingHistoryService clientStatusChangingHistoryService) {
 		this.statusDAO = statusDAO;
 		this.propertiesService = propertiesService;
 		this.sortedStatusesRepository = sortedStatusesRepository;
+		this.roleService = roleService;
+		this.env = env;
+		this.userService = userService;
+		this.clientStatusChangingHistoryService = clientStatusChangingHistoryService;
 	}
 
 	@Autowired
@@ -44,24 +53,53 @@ public class StatusServiceImpl implements StatusService {
 
 	//Для юзера из сессии смотрим для какого статуса какая нужна сортировка (и нужна ли)
 	@Override
-	public List<Status> getStatusesWithSortedClients(@AuthenticationPrincipal User userFromSession) {
-		List<Status> statuses = getAll();
+	public List<Status> getStatusesWithSortedClientsByRole(@AuthenticationPrincipal User userFromSession, Role role) {
+		List<Status> statuses;
+		List<Status> statusesWithSortedClients = new ArrayList<>();
+		if(role.equals(roleService.getRoleByName("OWNER"))) {
+			statuses = getAll();
+		} else{
+			statuses = getAllByRole(role);
+		}
 		SortedStatuses sorted;
 		for (Status status : statuses) {
 			sorted = new SortedStatuses(status, userFromSession);
 			if (status.getSortedStatuses().size() != 0 && status.getSortedStatuses().contains(sorted)) {
 				SortedStatuses finalSorted = sorted;
 				SortingType sortingType = status.getSortedStatuses().stream().filter(data -> Objects.equals(data, finalSorted)).findFirst().get().getSortingType();
-				status.setClients(clientService.getOrderedClientsInStatus(status, sortingType, userFromSession));
+				Status newStatus = new Status();
+				newStatus.setPosition(status.getPosition());
+				newStatus.setClients(clientService.getOrderedClientsInStatus(status, sortingType, userFromSession));
+				newStatus.setCreateStudent(status.isCreateStudent());
+				newStatus.setName(status.getName());
+				newStatus.setRole(status.getRole());
+				newStatus.setInvisible(status.getInvisible());
+				newStatus.setNextPaymentOffset(status.getNextPaymentOffset());
+				newStatus.setTrialOffset(status.getTrialOffset());
+				newStatus.setId(status.getId());
+				newStatus.setSortedStatuses(status.getSortedStatuses());
+				statusesWithSortedClients.add(newStatus);
+			} else {
+				statusesWithSortedClients.add(status);
 			}
 		}
-		return statuses;
+		return statusesWithSortedClients;
+	}
+
+	@Override
+	public List<StatusDtoForBoard> getStatusesForBoardByUserAndRole(@AuthenticationPrincipal User userFromSession, Role role) {
+		return statusDAO.getStatusesForBoard(userFromSession.getId(), userFromSession.getRole(), role.getId());
 	}
 
 	@Override
 	public List<Status> getAll() {
 		return statusDAO.getAllByOrderByIdAsc();
 	}
+
+    @Override
+    public List<Status> getAllByRole(Role role) {
+        return statusDAO.getAllByRole(role);
+    }
 
 	@Override
 	public Optional<Status> get(Long id) {
@@ -90,9 +128,16 @@ public class StatusServiceImpl implements StatusService {
 
 	@Override
 	public void add(Status status) {
+		List<Role> roles = Collections.singletonList(roleService.getRoleByName("OWNER"));
+		add(status, roles);
+	}
+
+	@Override
+	public void add(Status status, List<Role> roles) {
 		logger.info("{} adding of a new status...", StatusServiceImpl.class.getName());
 		checkStatusUnique(status);
 		Long position = statusDAO.findMaxPosition() + 1L;
+		status.setRole(new ArrayList<>(roles));
 		status.setPosition(position);
 		statusDAO.saveAndFlush(status);
 		logger.info("{} status added successfully...", StatusServiceImpl.class.getName());
@@ -117,13 +162,13 @@ public class StatusServiceImpl implements StatusService {
 	private void checkStatusUnique(Status status) {
 		Status statusFromDB = statusDAO.getStatusByName(status.getName());
 		if (statusFromDB != null && !statusFromDB.equals(status)) {
-			throw new StatusExistsException("Статус с таким названием уже существует");
+			throw new StatusExistsException(env.getProperty("messaging.client.status.exception.allready-exist"));
 		}
 	}
 
 	private void checkStatusId(Long id) {
 		if (id == 1L) {
-			throw new StatusExistsException("Статус с индексом \"1\" нельзя удалить");
+			throw new StatusExistsException(env.getProperty("messaging.client.status.exception.impossible-to-del-first"));
 		}
 		Optional<Status> optional = statusDAO.findById(id);
 		Status statusFromDB = null;
@@ -131,14 +176,19 @@ public class StatusServiceImpl implements StatusService {
 			statusFromDB = optional.get();
 		}
 		if (statusFromDB.getName().equals("deleted")) {
-			throw new StatusExistsException("Статус deleted нельзя удалить");
+			throw new StatusExistsException(env.getProperty("messaging.client.status.exception.deleted-impossible-to-del"));
 		}
 	}
 
 	private void transferStatusClientsBeforeDelete(Status status) {
+		User user = userService.get(1L);
 		if (status.getClients() != null) {
 			Status defaultStatus = statusDAO.getStatusByName("deleted");
 			defaultStatus.getClients().addAll(status.getClients());
+			for (Client client :status.getClients()) {
+				ClientStatusChangingHistory clientStatusChangingHistory = new ClientStatusChangingHistory(ZonedDateTime.now(), status, defaultStatus, client, user);
+				clientStatusChangingHistoryService.add(clientStatusChangingHistory);
+			}
 			status.getClients().clear();
 			statusDAO.saveAndFlush(status);
 		}
@@ -182,5 +232,15 @@ public class StatusServiceImpl implements StatusService {
 			sortedStatus.setSortingType(newOrder);
 			sortedStatusesRepository.save(sortedStatus);
 		}
+	}
+
+	@Override
+	public List<StatusPositionIdNameDTO> getAllStatusesMinDTOWhichAreNotInvisible() {
+		List<BigInteger> ids = statusDAO.getAllIdsWhichNotInvisible();
+		List<StatusPositionIdNameDTO> statusPositionIdNameDTOS = new ArrayList<>();
+		for (BigInteger id:ids) {
+			statusPositionIdNameDTOS.add(new StatusPositionIdNameDTO(id.longValue(), statusDAO.getStatusPositionById(id.longValue()), statusDAO.getStatusNameById(id.longValue())));
+		}
+		return statusPositionIdNameDTOS;
 	}
 }

@@ -32,6 +32,10 @@ public class ProjectProperties {
     @Column(name = "client_first_pay_status")
     private Long clientFirstPayStatus = -1L;
 
+    // ID статуса по-умолчанию для клиентов после первого созвона
+    @Column(name = "first_skype_call_after_status")
+    private Long firstSkypeCallAfterStatus = -1L;
+
     /**
      * Message template for scheduled payment notification.
      */
@@ -45,6 +49,13 @@ public class ProjectProperties {
     @OneToOne
     @JoinColumn(name = "new_client_message_template")
     private MessageTemplate newClientMessageTemplate;
+
+    /**
+     * Message template for birth day notification.
+     */
+    @OneToOne
+    @JoinColumn(name = "birth_day_message_template")
+    private MessageTemplate birthDayMessageTemplate;
 
     /**
      * Time of the day payment notification invoked in.
@@ -315,6 +326,22 @@ public class ProjectProperties {
 
     public void setSlackInviteLink(String slackInviteLink) {
         this.slackInviteLink = slackInviteLink;
+    }
+
+    public MessageTemplate getBirthDayMessageTemplate() {
+        return birthDayMessageTemplate;
+    }
+
+    public void setBirthDayMessageTemplate(MessageTemplate birthDayMessageTemplate) {
+        this.birthDayMessageTemplate = birthDayMessageTemplate;
+    }
+
+    public Long getFirstSkypeCallAfterStatus() {
+        return firstSkypeCallAfterStatus;
+    }
+
+    public void setFirstSkypeCallAfterStatus(Long firstSkypeCallAfterStatus) {
+        this.firstSkypeCallAfterStatus = firstSkypeCallAfterStatus;
     }
 
     @Override

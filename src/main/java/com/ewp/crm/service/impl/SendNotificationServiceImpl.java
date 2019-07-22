@@ -1,5 +1,6 @@
 package com.ewp.crm.service.impl;
 
+import com.ewp.crm.configs.VKConfigImpl;
 import com.ewp.crm.models.*;
 import com.ewp.crm.service.interfaces.*;
 import org.slf4j.Logger;
@@ -37,10 +38,14 @@ public class SendNotificationServiceImpl implements SendNotificationService {
 
     private final VKService vkService;
 
+    private final String chatToNewClient;
+
     private static Logger logger = LoggerFactory.getLogger(SendNotificationServiceImpl.class);
 
+    private Environment env;
+
     @Autowired
-    public SendNotificationServiceImpl(MessageTemplateService messageTemplateService, ProjectPropertiesService projectPropertiesService, Environment env, UserService userService, MailSendService mailSendService, NotificationService notificationService, SMSService smsService, @Lazy VKService vkService) {
+    public SendNotificationServiceImpl(MessageTemplateService messageTemplateService, ProjectPropertiesService projectPropertiesService, Environment env, UserService userService, MailSendService mailSendService, NotificationService notificationService, SMSService smsService, @Lazy VKService vkService, VKConfigImpl vkConfig) {
         this.userService = userService;
         this.mailSendService = mailSendService;
         this.notificationService = notificationService;
@@ -49,6 +54,8 @@ public class SendNotificationServiceImpl implements SendNotificationService {
         this.messageTemplateService = messageTemplateService;
         this.projectProperties = projectPropertiesService.getOrCreate();
         this.serverUrl = env.getProperty("server.url");
+        this.chatToNewClient = vkConfig.getChatToSendNewClient();
+        this.env = env;
     }
 
     @Override
@@ -69,7 +76,7 @@ public class SendNotificationServiceImpl implements SendNotificationService {
             String newClientUrl = serverUrl + "/client?id=" + client.getId();
             Optional<String> shortUrl = vkService.getShortLinkForUrl(newClientUrl);
             Map<String, String> params = new HashMap<>();
-            params.put("%from%", from);
+            params.put("%from%", from + " c id=" + client.getId() + " ");
             params.put("%link%", shortUrl.orElse(newClientUrl));
             String notificationMessage = messageTemplateService.replaceName(template.getOtherText(), params);
             List<User> usersToNotify = userService.getAll();
@@ -81,6 +88,7 @@ public class SendNotificationServiceImpl implements SendNotificationService {
                     smsService.sendSimpleSmsToUser(userToNotify, notificationMessage.replace("https://", ""));
                 }
             }
+            vkService.sendMessageByChatId(chatToNewClient, notificationMessage);
         }
     }
 
@@ -93,7 +101,7 @@ public class SendNotificationServiceImpl implements SendNotificationService {
         Matcher matcher = pattern.matcher(content);
 
         User contentCreator = (User) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
-        String notificationMessage = String.format("Для Вас %s в комментариях под карточкой %s %s написал: \" %s \"",
+        String notificationMessage = String.format(env.getProperty("messaging.notification.set-comment"),
                 contentCreator.getFullName(), client.getLastName(), client.getName(), content);
 
         while (matcher.find()) {

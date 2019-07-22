@@ -1,5 +1,6 @@
 package com.ewp.crm.controllers.rest;
 
+import com.ewp.crm.models.MessageTemplate;
 import com.ewp.crm.models.User;
 import com.ewp.crm.service.impl.MessageTemplateServiceImpl;
 import com.ewp.crm.service.interfaces.MailSendService;
@@ -23,14 +24,15 @@ public class EmailRestController {
 	}
 
 	@PostMapping(value = "/rest/sendEmail")
-	@PreAuthorize("hasAnyAuthority('OWNER', 'ADMIN', 'USER')")
+	@PreAuthorize("hasAnyAuthority('OWNER', 'ADMIN', 'USER', 'HR')")
 	public ResponseEntity sendEmail(@RequestParam("clientId") Long clientId,
 									@RequestParam("templateId") Long templateId,
 									@RequestParam(value = "body", required = false) String body,
 									@AuthenticationPrincipal User userFromSession) {
-		String templateText = messageTemplateService.get(templateId).getTemplateText();
-		mailSendService.prepareAndSend(clientId, templateText, body, userFromSession);
+		MessageTemplate messageTemplate = messageTemplateService.get(templateId);
+		String templateText = messageTemplate.getTemplateText();
+		String theme = messageTemplate.getTheme();
+		mailSendService.prepareAndSend(clientId, templateText, body, userFromSession, theme);
 		return ResponseEntity.ok().build();
 	}
-
 }

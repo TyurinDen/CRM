@@ -3,7 +3,6 @@ package com.ewp.crm.models;
 import org.springframework.security.core.GrantedAuthority;
 
 import javax.persistence.*;
-import java.util.Objects;
 
 /**
  * Роль (user, admin, mentor и тд)
@@ -61,5 +60,10 @@ public class Role implements GrantedAuthority {
 	@Override
 	public int hashCode() {
 		return roleName != null ? roleName.hashCode() : 0;
+	}
+
+	@Override
+	public String toString() {
+		return roleName + " (" + id + ")";
 	}
 }

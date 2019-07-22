@@ -29,7 +29,7 @@
         <br/>
         <br/>
         <button type="button" class="btn btn-primary pull" data-toggle="modal"
-                data-target="#vkAuthModal">
+                data-target="#vkAuthModal" sec:authorize="hasAnyAuthority('OWNER','ADMIN')">
             Авторизация Вконтакте
         </button>
         <br/>
@@ -41,14 +41,14 @@
         <br/>
         <div class="inline">
             <form class="form" method="get" action="/login/google/drive">
-                <input type="submit" class="btn btn btn-success pull" value="Авторизация Google Drive"/>
+                <input type="submit" class="btn btn btn-success pull" value="Авторизация Google Drive" sec:authorize="hasAnyAuthority('OWNER','ADMIN')"/>
             </form>
         </div>
         <br/>
         <br/>
         <div class="inline">
             <form class="form" method="get" action="/login/google/calendar">
-                <input type="submit" class="btn btn btn-success pull" value="Авторизация Google Calendar"/>
+                <input type="submit" class="btn btn btn-success pull" value="Авторизация Google Calendar" sec:authorize="hasAnyAuthority('OWNER','ADMIN')"/>
             </form>
         </div>
         <br/>
@@ -95,6 +95,18 @@
             </button>
         </div>
         <br/>
+        <div id="birthday-user-setting-button">
+            <button class="btn btn-primary pull" data-toggle="modal"  data-target="#birthday-modal"
+                    sec:authorize="hasAnyAuthority('OWNER')">
+                Настройки сообщения для дня рождения
+            </button>
+        </div>
+        <br/>
+        <div>
+            <a class="btn btn-primary pull" href="/otherInformation" sec:authorize="hasAnyAuthority('OWNER')">Настроить
+                дополнительную информацию о клиенте</a>
+        </div>
+        <br/>
         <div>
             <th:block th:if="isTdlibInstalled">
                 <th:block th:if="${isTelegramAuthenticated}">
@@ -104,7 +116,7 @@
                 </th:block>
                 <th:block th:if="!${isTelegramAuthenticated}">
                     <button id="telegram-auth-button" class="btn btn-primary pull" data-toggle="modal"
-                            data-target="#telegram-auth-modal">
+                            data-target="#telegram-auth-modal" sec:authorize="hasAnyAuthority('OWNER','ADMIN')">
                         Авторизация в Telegram
                     </button>
                 </th:block>
@@ -215,6 +227,10 @@
                         <label for="first-pay-status-column">Выберите статус клиента после первой оплаты</label>
                         <select id="first-pay-status-column" class="form-control"> </select>
                     </div>
+                    <div class="row">
+                        <label for="first-skype-call-after-status">Выберите статус клиента после первого созвона в skype</label>
+                        <select id="first-skype-call-after-status" class="form-control"> </select>
+                    </div>
                 </div>
             </div>
             <div class="modal-footer">
@@ -239,8 +255,8 @@
                         <input type="text" class="form-control" id="slack-users" />
                     </div>
                     <div class="row">
-                        <label for="slack-invite-link">Введите ссылку на первый урок</label>
-                        <input type="text" class="form-control" id="slack-invite-link" />
+                        <label for="slack-invite-link">Введите ссылку на первый урок (в конце символ "?")</label>
+                        <input type="text" class="form-control" id="slack-invite-link" placeholder="https://crm.java-mentor.com/first-lesson?"/>
                     </div>
                 </div>
             </div>
@@ -250,11 +266,12 @@
         </div>
     </div>
 </div>
+
+<div th:replace="fragments/birthday-modal::birthDayModal"></div>
 <div th:replace="fragments/auto-answer-modal::autoAnswerModal"></div>
 <div th:replace="fragments/contract-user-setting-modal::contractUserSettingModal"></div>
 <div th:replace="fragments/payment-notification-modal::paymentNotificationModal"></div>
 <div th:replace="fragments/telegram-auth-modal::telegramAuthModal"></div>
-<script type="text/javascript" th:src="@{/js/main-table.js}"></script>
 <div th:replace="fragments/new-student-config-modal::newStudentConfigModal"></div>
 <script type="text/javascript" th:src="@{/js/vk-auth.js}"></script>
 <script type="text/javascript" th:src="@{/js/user-customize.js}"></script>

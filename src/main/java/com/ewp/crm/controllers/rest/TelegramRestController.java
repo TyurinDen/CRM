@@ -2,10 +2,10 @@ package com.ewp.crm.controllers.rest;
 
 import com.ewp.crm.models.Client;
 import com.ewp.crm.models.SocialProfile;
+import com.ewp.crm.models.SocialProfile.SocialNetworkType;
 import com.ewp.crm.service.impl.TelegramServiceImpl;
 import com.ewp.crm.service.interfaces.ClientService;
 import com.ewp.crm.service.interfaces.SocialProfileService;
-import com.ewp.crm.service.interfaces.SocialProfileTypeService;
 import com.ewp.crm.service.interfaces.TelegramService;
 import org.drinkless.tdlib.TdApi;
 import org.slf4j.Logger;
@@ -14,7 +14,11 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
 
 import java.io.IOException;
 import java.util.HashMap;
@@ -24,13 +28,12 @@ import java.util.Optional;
 
 @RestController
 @RequestMapping("/rest/telegram")
-@PreAuthorize("hasAnyAuthority('OWNER', 'ADMIN', 'USER')")
+@PreAuthorize("hasAnyAuthority('OWNER', 'ADMIN', 'USER', 'MENTOR', ' HR')")
 public class TelegramRestController {
 
     private final TelegramService telegramService;
     private final ClientService clientService;
     private final SocialProfileService socialProfileService;
-    private final SocialProfileTypeService socialProfileTypeService;
     private final TelegramServiceImpl telegramServiceImpl;
     private static final int MESSAGE_LIMIT = 40;
 
@@ -38,13 +41,11 @@ public class TelegramRestController {
 
     @Autowired
     public TelegramRestController(TelegramService telegramService, ClientService clientService,
-                                  SocialProfileService socialProfileService,
-                                  SocialProfileTypeService socialProfileTypeService, TelegramServiceImpl telegramServiceImpl) {
+                                  SocialProfileService socialProfileService, TelegramServiceImpl telegramServiceImpl) {
         this.telegramService = telegramService;
         this.clientService = clientService;
-        this.socialProfileService = socialProfileService;
-        this.socialProfileTypeService = socialProfileTypeService;
         this.telegramServiceImpl = telegramServiceImpl;
+        this.socialProfileService = socialProfileService;
     }
 
     @GetMapping("/phone-code")
@@ -68,7 +69,7 @@ public class TelegramRestController {
             Optional<TdApi.Chat> chat;
             ResponseEntity result = new ResponseEntity(new HashMap<String, Object>(), HttpStatus.OK);
             for (SocialProfile profile : profiles) {
-                if ("telegram".equals(profile.getSocialProfileType().getName())) {
+                if ("telegram".equals(profile.getSocialNetworkType().getName())) {
                     String chatId = profile.getSocialId();
                     messages = telegramService.getChatMessages(Long.parseLong(chatId), MESSAGE_LIMIT);
                     Map<String, Object> map = new HashMap<>();
@@ -93,7 +94,7 @@ public class TelegramRestController {
             List<SocialProfile> profiles = client.get().getSocialProfiles();
             HttpStatus result = HttpStatus.NOT_FOUND;
             for (SocialProfile profile : profiles) {
-                if ("telegram".equals(profile.getSocialProfileType().getName())) {
+                if ("telegram".equals(profile.getSocialNetworkType().getName())) {
                     String chatId = profile.getSocialId();
                     telegramService.closeChat(Long.parseLong(chatId));
                     result = HttpStatus.OK;
@@ -106,7 +107,7 @@ public class TelegramRestController {
     }
 
     @GetMapping("/messages/chat/unread")
-    public ResponseEntity<Map<String, Object>>  getUnreadChatMessages(@RequestParam("clientId") Long clientId) {
+    public ResponseEntity<Map<String, Object>> getUnreadChatMessages(@RequestParam("clientId") Long clientId) {
         Optional<Client> client = clientService.getClientByID(clientId);
         if (client.isPresent()) {
             List<SocialProfile> profiles = client.get().getSocialProfiles();
@@ -114,7 +115,7 @@ public class TelegramRestController {
             TdApi.Chat chat = new TdApi.Chat();
             ResponseEntity result = ResponseEntity.badRequest().build();
             for (SocialProfile profile : profiles) {
-                if ("telegram".equals(profile.getSocialProfileType().getName())) {
+                if ("telegram".equals(profile.getSocialNetworkType().getName())) {
                     String chatId = profile.getSocialId();
                     messages = telegramService.getUnreadMessagesFromChat(Long.parseLong(chatId), MESSAGE_LIMIT);
                     chat = telegramService.getChat(Long.parseLong(chatId)).get();
@@ -138,9 +139,9 @@ public class TelegramRestController {
             result = new ResponseEntity(telegramService.sendChatMessage(Long.parseLong(profile.get().getSocialId()), text), HttpStatus.OK);
         } else {
             Optional<Client> client = clientService.getClientByID(clientId);
-            if (client.isPresent() && client.get().getEmail() != null) {
-                int telegramId = telegramService.getClientIdByPhone(client.get().getPhoneNumber());
-                socialProfileTypeService.getByTypeName("telegram").ifPresent(s -> client.get().getSocialProfiles().add(new SocialProfile(String.valueOf(telegramId), s)));
+            if (client.isPresent() && client.get().getEmail().isPresent() && client.get().getPhoneNumber().isPresent()) {
+                int telegramId = telegramService.getClientIdByPhone(client.get().getPhoneNumber().get());
+                client.get().getSocialProfiles().add(new SocialProfile(String.valueOf(telegramId), SocialNetworkType.TELEGRAM));
                 clientService.update(client.get());
                 result = new ResponseEntity(telegramService.sendChatMessage((long) telegramId, text), HttpStatus.OK);
             }
@@ -170,8 +171,8 @@ public class TelegramRestController {
         if (client.isPresent()) {
             Optional<SocialProfile> profile = socialProfileService.getSocialProfileByClientIdAndTypeName(client.get().getId(), "telegram");
             if (!profile.isPresent() && telegramId != 0) {
-                if (client.get().getEmail() != null) {
-                    socialProfileTypeService.getByTypeName("telegram").ifPresent(s -> client.get().getSocialProfiles().add(new SocialProfile(String.valueOf(telegramId), s)));
+                if (client.get().getEmail().isPresent()) {
+                    client.get().getSocialProfiles().add(new SocialProfile(String.valueOf(telegramId), SocialNetworkType.TELEGRAM));
                     clientService.update(client.get());
                 }
             }

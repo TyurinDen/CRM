@@ -8,14 +8,7 @@ $('.delete-client').on('click', function (event) {
         url: 'rest/client/' + deleteId,
         data: formData,
         success: function (client) {
-            console.log(client.notifications);
-            if (client.notifications.length != 0) {
-                $('#delete-client-btn').attr('onclick', 'deleteClientStatus()');
-                var deleteModal = $('#delete-client-modal');
-                deleteModal.modal('show');
-            } else {
-                deleteClientStatus();
-            }
+            deleteClientStatus();
         }
     });
 
@@ -78,7 +71,6 @@ $(document).on("show.bs.dropdown", ".statuses-by-dropdown", function () {
     $(this).find(".statuses-content").html(data.html());
 });
 
-
 //скрытие карточки в скрытый статус
 var invisibleId;
 var statusId;
@@ -90,19 +82,10 @@ $('.invisible-client').on('click', function (event) {
         type: 'GET',
         url: 'rest/client/' + invisibleId,
         data: formData,
-        success: function (client) {
-            console.log(client.notifications);
-            if (client.notifications.length != 0) {
-                console.log(client.notifications)
-                $('#delete-client-btn').attr('onclick', 'invisible()');
-                var deleteModal = $('#delete-client-modal');
-                deleteModal.modal('show');
-            } else {
-                invisible();
-            }
+        success: function () {
+            invisible();
         }
     });
-
 });
 
 function invisible() {
@@ -125,8 +108,8 @@ function invisible() {
             alert('Не задан статус по-умолчанию для нового студента!');
         }
     });
-
 }
+
 //Удаление статуса и карточек
 var deleteStatusId;
 $(".glyphicon-remove-circle").on("click", function dStatus() {
@@ -296,3 +279,58 @@ $(".create_student_checkbox").click(function () {
         }
     });
 });
+
+function showAllStatuses(){
+    $.ajax({
+        type: 'GET',
+        url: "/rest/status/all/dto-position-id",
+        success: function (dtoes) {
+            for (let i = 0; i <dtoes.length ; i++) {
+                $('#all-statuses-positions-table tbody').append("<tr>" +
+                    "<td hidden>" + dtoes[i].id + "</td>" +
+                    "<td hidden>" + dtoes[i].position + "</td>" +
+                    "<td>" +dtoes[i].statusName +"</td>" +
+                    "</tr>")
+            }
+        }
+    });
+}
+
+$(function () {
+    $("#all-statuses-positions-table-body").sortable({
+        connectWith: ".connectedSortable",
+        stop: function () {
+            $('#statuses-position-button').empty();
+            var table = document.getElementById("all-statuses-positions-table");
+            let dtos = [];
+            for (var i = 0; i < table.rows.length; i++) {
+                var row = table.rows[i];
+                var id = row.cells[0].textContent;
+                let position = row.cells[1].textContent;
+                let dto = {
+                    id: id,
+                    position:position
+                }
+                dtos.push(dto);
+            }
+            let jsonDtos = JSON.stringify(dtos);
+            $.ajax({
+                url: "/rest/status/position/change",
+                data: jsonDtos,
+                contentType: "application/json",
+                type: 'PUT',
+                dataType: 'JSON',
+                success: function (returnObj) {
+                },
+                error: function (error) {
+                    console.log(error);
+                }
+            });
+            $('#statuses-position-button').empty().append('<button class="btn btn-info btn-sm" id="button-statuses-position" onclick="reload()">Сохранить</button>');
+        }
+    }).disableSelection();
+});
+
+function reload() {
+    window.location.reload();
+}

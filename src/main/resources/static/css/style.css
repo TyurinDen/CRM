@@ -442,7 +442,7 @@ ul.nav a:hover {
 	height: 30px;
 }
 
-
+input[id^="checkbox-role"] { display: none; }
 input[id^="checkbox-user"] { display: none; }
 input[id^="ipTel"] { display: none; }
 input[id^="client_filter"] { display: none; }
@@ -989,4 +989,9 @@ textarea[class*="feedback-video-url"] {
 
 #tbody-all-feedback-table textarea[class*="feedback-video-url"] {
 	max-width: 230px;
+}
+
+#divToFiltration {
+    text-align: center;
+    display: none;
 }

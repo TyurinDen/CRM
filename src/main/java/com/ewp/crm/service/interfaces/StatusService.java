@@ -1,8 +1,11 @@
 package com.ewp.crm.service.interfaces;
 
+import com.ewp.crm.models.Role;
 import com.ewp.crm.models.SortedStatuses.SortingType;
 import com.ewp.crm.models.Status;
 import com.ewp.crm.models.User;
+import com.ewp.crm.models.dto.StatusDtoForBoard;
+import com.ewp.crm.models.dto.StatusPositionIdNameDTO;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 
 import java.util.List;
@@ -12,7 +15,9 @@ public interface StatusService {
 
     List<Status> getAll();
 
-    List<Status> getStatusesWithSortedClients(@AuthenticationPrincipal User userFromSession);
+    List<Status> getStatusesWithSortedClientsByRole(@AuthenticationPrincipal User userFromSession, Role role);
+
+    List<Status> getAllByRole(Role role);
 
     Optional<Status> get(Long id);
 
@@ -24,7 +29,9 @@ public interface StatusService {
 
     Optional<Status> getStatusByName(String name);
 
-	void add(Status status);
+    void add(Status status);
+
+	void add(Status status, List<Role> roles);
 
     void addInit(Status status);
 
@@ -40,5 +47,7 @@ public interface StatusService {
 
     void setNewOrderForChosenStatusForCurrentUser(SortingType newOrder, Long statusId, User currentUser);
 
+    List<StatusPositionIdNameDTO> getAllStatusesMinDTOWhichAreNotInvisible();
 
+    List<StatusDtoForBoard> getStatusesForBoardByUserAndRole(@AuthenticationPrincipal User userFromSession, Role role);
 }

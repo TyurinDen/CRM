@@ -5,10 +5,11 @@ import com.ewp.crm.exceptions.parse.ParseClientException;
 import com.ewp.crm.exceptions.util.FBAccessTokenException;
 import com.ewp.crm.exceptions.util.VKAccessTokenException;
 import com.ewp.crm.models.*;
+import com.ewp.crm.models.SocialProfile.SocialNetworkType;
 import com.ewp.crm.service.email.MailingService;
 import com.ewp.crm.service.interfaces.*;
 import com.ewp.crm.service.interfaces.vkcampaigns.VkCampaignService;
-import com.ewp.crm.utils.patterns.ValidationPattern;
+import com.ewp.crm.util.patterns.ValidationPattern;
 import org.drinkless.tdlib.TdApi;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -19,10 +20,7 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
-import java.time.LocalDate;
-import java.time.LocalTime;
-import java.time.ZoneId;
-import java.time.ZonedDateTime;
+import java.time.*;
 import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
 import java.util.Collections;
@@ -34,6 +32,7 @@ import java.util.Optional;
 @PropertySource(value = "file:./skype-message.properties", encoding = "Cp1251")
 @PropertySource(value = "file:./advertisement-report.properties", encoding = "UTF-8")
 public class ScheduleTasks {
+	private final ProjectProperties projectProperties;
 
     private final VKService vkService;
 
@@ -48,8 +47,6 @@ public class ScheduleTasks {
 	private final StatusService statusService;
 
 	private final SocialProfileService socialProfileService;
-
-	private final SocialProfileTypeService socialProfileTypeService;
 
 	private final SMSService smsService;
 
@@ -96,8 +93,7 @@ public class ScheduleTasks {
 						 YouTubeTrackingCardService youTubeTrackingCardService,
 						 ClientService clientService, StudentService studentService,
 						 StatusService statusService, ProjectPropertiesService projectPropertiesService,
-						 MailingService mailingService, SocialProfileService socialProfileService,
-						 SocialProfileTypeService socialProfileTypeService, SMSService smsService,
+						 MailingService mailingService, SocialProfileService socialProfileService, SMSService smsService,
 						 SMSInfoService smsInfoService, SendNotificationService sendNotificationService,
 						 ClientHistoryService clientHistoryService, VkTrackedClubService vkTrackedClubService,
 						 VkMemberService vkMemberService, FacebookService facebookService, YoutubeService youtubeService,
@@ -112,7 +108,6 @@ public class ScheduleTasks {
 		this.studentService = studentService;
 		this.statusService = statusService;
 		this.socialProfileService = socialProfileService;
-		this.socialProfileTypeService = socialProfileTypeService;
 		this.smsService = smsService;
 		this.smsInfoService = smsInfoService;
 		this.mailSendService = mailSendService;
@@ -132,23 +127,49 @@ public class ScheduleTasks {
 		this.adReportTemplate = env.getProperty("template.daily.report");
 		this.telegramService = telegramService;
 		this.slackService = slackService;
+		this.projectProperties = projectPropertiesService.getOrCreate();
 	}
 
-	private void addClient(Client newClient) {
-		statusService.getFirstStatusForClient().ifPresent(newClient::setStatus);
-		newClient.setState(Client.State.NEW);
-		socialProfileTypeService.getByTypeName("vk").ifPresent(newClient.getSocialProfiles().get(0)::setSocialProfileType);
-		clientHistoryService.createHistory("vk").ifPresent(newClient::addHistory);
-		vkService.fillClientFromProfileVK(newClient);
-		String email = newClient.getEmail();
-		if (email!=null&&!email.matches(ValidationPattern.EMAIL_PATTERN)){
-			newClient.setClientDescriptionComment(newClient.getClientDescriptionComment()+System.lineSeparator()+"Возможно клиент допустил ошибку в поле Email: "+email);
-			newClient.setEmail(null);
-		}
-		clientService.addClient(newClient);
-		sendNotificationService.sendNewClientNotification(newClient, "vk");
-		logger.info("New client with id{} has added from VK", newClient.getId());
+	private void addClientFromVk(Client newClient) {
+            statusService.getFirstStatusForClient().ifPresent(newClient::setStatus);
+            newClient.setState(Client.State.NEW);
+            if (!newClient.getSocialProfiles().isEmpty()) {
+                newClient.getSocialProfiles().get(0).setSocialNetworkType(SocialNetworkType.VK);
+            }
+            clientHistoryService.createHistory("vk").ifPresent(newClient::addHistory);
+            vkService.fillClientFromProfileVK(newClient);
+            Optional<String> optionalEmail = newClient.getEmail();
+            if (optionalEmail.isPresent() && !optionalEmail.get().matches(ValidationPattern.EMAIL_PATTERN)) {
+                newClient.setClientDescriptionComment(newClient.getClientDescriptionComment() + System.lineSeparator() + env.getProperty("messaging.client.email.error-in-field") + optionalEmail.get());
+            }
+            clientService.addClient(newClient, null);
+            sendNotificationService.sendNewClientNotification(newClient, "vk");
+            logger.info("New client with id {} has added from VK", newClient.getId());
 	}
+
+    @Scheduled(cron = "0 0 7 * * *")
+    private void sendBirthdayMails() {
+        Optional<MessageTemplate> messageTemplateBirthDay = Optional.ofNullable(projectProperties.getBirthDayMessageTemplate());
+        if (messageTemplateBirthDay.isPresent()) {
+            String messageBirthDay = messageTemplateBirthDay.get().getOtherText();
+            LocalDate today = LocalDate.now();
+            int dayOfMonthToday = today.getDayOfMonth();
+            int monthToday = today.getMonthValue();
+
+            List<Client> clients = clientService.getAll();
+            for (Client currentClient : clients) {
+                LocalDate birthDate = currentClient.getBirthDate();
+                int clientDayOfBirth = birthDate.getDayOfMonth();
+                int monthOfBirth = birthDate.getMonthValue();
+
+                if ((dayOfMonthToday == clientDayOfBirth) && (monthToday == monthOfBirth)) {
+                    if (currentClient.getEmail().isPresent() && !currentClient.getEmail().get().isEmpty()) {
+                        mailSendService.sendSimpleNotification(currentClient.getId(), messageBirthDay);
+                    }
+                }
+            }
+        }
+    }
 
 	@Scheduled(fixedRate = 15_000)
 	private void checkCallInSkype() {
@@ -167,6 +188,7 @@ public class ScheduleTasks {
 			Client client = assignSkypeCall.getToAssignSkypeCall();
 			String skypeTemplateHtml = env.getRequiredProperty("skype.template");
 			String skypeTemplateText = env.getRequiredProperty("skype.textTemplate");
+			String skypeTheme = env.getRequiredProperty("skype.theme");
 			User principal = assignSkypeCall.getFromAssignSkypeCall();
 			Long clientId = client.getId();
 			String dateOfSkypeCall = ZonedDateTime.parse(assignSkypeCall.getNotificationBeforeOfSkypeCall().toString())
@@ -179,16 +201,16 @@ public class ScheduleTasks {
 					logger.warn("VK message not sent", e);
 				}
 			}
-			if (client.getPhoneNumber() != null && !client.getPhoneNumber().isEmpty()) {
+			if (client.getPhoneNumber().isPresent() && !client.getPhoneNumber().get().isEmpty()) {
 				try {
 					smsService.sendSMS(clientId, skypeTemplateText, dateOfSkypeCall, principal);
 				} catch (Exception e) {
 					logger.warn("SMS message not sent", e);
 				}
 			}
-			if (client.getEmail() != null && !client.getEmail().isEmpty()) {
+			if (client.getEmail().isPresent() && !client.getEmail().get().isEmpty()) {
 				try {
-					mailSendService.prepareAndSend(clientId, skypeTemplateHtml, dateOfSkypeCall, principal);
+					mailSendService.prepareAndSend(clientId, skypeTemplateHtml, dateOfSkypeCall, principal, skypeTheme);
 				} catch (Exception e) {
 					logger.warn("E-mail message not sent");
 				}
@@ -210,7 +232,7 @@ public class ScheduleTasks {
 							String s = newMassages.orElse(Collections.emptyList()).toString().replaceAll("<br><br>","<br>");
 							ClientHistory clientHistory = new ClientHistory(s,ZonedDateTime.now(ZoneId.systemDefault()),ClientHistory.Type.SOCIAL_REQUEST);
 							newClient.addHistory(clientHistory);
-							addClient(newClient);
+							addClientFromVk(newClient);
 						} catch (ParseClientException e) {
 							logger.error(e.getMessage());
 						}
@@ -228,7 +250,7 @@ public class ScheduleTasks {
 		List<VkMember> lastMemberList = vkMemberService.getAll();
 		for (VkTrackedClub vkTrackedClub : vkTrackedClubList) {
 			List<VkMember> freshMemberList = vkService.getAllVKMembers(vkTrackedClub.getGroupId(), 0L)
-					.orElseThrow(NotFoundMemberList::new);
+					.orElseThrow(() -> new NotFoundMemberList(env.getProperty("messaging.vk.exception.not-found-member-list")));
 			int countNewMembers = 0;
 			for (VkMember vkMember : freshMemberList) {
 				if (!lastMemberList.contains(vkMember)) {
@@ -252,7 +274,7 @@ public class ScheduleTasks {
 				if (newClient.isPresent()) {
 					SocialProfile socialProfile = newClient.get().getSocialProfiles().get(0);
 					if (!(socialProfileService.getSocialProfileBySocialIdAndSocialType(socialProfile.getSocialId(), "vk").isPresent())) {
-						addClient(newClient.get());
+						addClientFromVk(newClient.get());
 					}
 				}
 			}
@@ -274,7 +296,7 @@ public class ScheduleTasks {
         mailingService.sendMessages();
 	}
 
-	@Scheduled(cron = "* */15 * * * *")
+	@Scheduled(cron = "0 0 * * * *")
 	private void getSlackProfiles() {
 		slackService.tryLinkSlackAccountToAllStudents();
 	}
@@ -290,11 +312,14 @@ public class ScheduleTasks {
 
 	@Scheduled(cron = "0 0 0 * * *")
 	private void sendDailyAdvertisementReport() {
+		logger.debug("Start filling ad report");
         LocalDate date = LocalDate.now().minusDays(1);
         DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd.MM.yyyy");
-        String formattedDate = date.format(formatter);
-        adReportTemplate = adReportTemplate.replace("{date}", formattedDate);
+		String formattedDate = date.format(formatter);
+		logger.debug("Ad report for {}", formattedDate);
+		adReportTemplate = adReportTemplate.replace("{date}", formattedDate);
         vkService.sendDailyAdvertisementReport(adReportTemplate);
+		logger.debug("Finish filling ad report");
 	}
 
 	@Scheduled(cron = "0 0 10 01 * ?")
@@ -311,10 +336,10 @@ public class ScheduleTasks {
 			if (status.isPresent()) {
 				if (!status.get().equals("queued")) {
 					if (status.get().equals("delivered")) {
-						sms.setDeliveryStatus("доставлено");
+						sms.setDeliveryStatus(env.getProperty("messaging.client.phone.sms.delivered"));
 					} else if (sms.getClient() == null) {
 						logger.error("Can not create notification with empty SMS client, SMS message: {}", sms);
-						sms.setDeliveryStatus("Клиент не найден");
+						sms.setDeliveryStatus(env.getProperty("messaging.client.phone.sms.status-not-found"));
 					} else {
 						String deliveryStatus = determineStatusOfResponse(status.get());
 						sendNotificationService.sendNotificationType(deliveryStatus, sms.getClient(), sms.getUser(), Notification.Type.SMS);
@@ -331,16 +356,16 @@ public class ScheduleTasks {
 		String info;
 		switch (status) {
 			case "delivery error":
-				info = "Номер заблокирован или вне зоны";
+				info = env.getProperty("messaging.client.phone.calls.delivery-error");
 				break;
 			case "invalid mobile phone":
-				info = "Неправильный формат номера";
+				info = env.getProperty("messaging.client.phone.calls.invalid-mobile-phone");
 				break;
 			case "incorrect id":
-				info = "Неверный id сообщения";
+				info = env.getProperty("messaging.client.phone.calls.incorrect-id");
 				break;
 			default:
-				info = "Неизвестная ошибка";
+				info = env.getProperty("messaging.client.phone.calls.unknown-error");
 		}
 		return info;
 	}
@@ -376,19 +401,26 @@ public class ScheduleTasks {
 			LocalTime now = LocalTime.now().truncatedTo(ChronoUnit.HOURS);
 			if (properties.isPaymentNotificationEnabled() && now.equals(time)) {
 				for (Student student : studentService.getStudentsWithTodayNotificationsEnabled()) {
-					MessageTemplate template = properties.getPaymentMessageTemplate();
-					Long clientId = student.getClient().getId();
-					if (student.isNotifyEmail()) {
-						mailSendService.sendSimpleNotification(clientId, template.getTemplateText());
-					}
-					if (student.isNotifySMS()) {
-						smsService.sendSimpleSMS(clientId, template.getOtherText());
-					}
-					if (student.isNotifyVK()) {
-						vkService.simpleVKNotification(clientId, template.getOtherText());
-					}
-					if (student.isNotifySlack()) {
-						slackService.trySendSlackMessageToStudent(student.getId(), template.getOtherText());
+					if (student.getLastPaymentNotification() == null ||
+							ChronoUnit.DAYS.between(student.getLastPaymentNotification(), LocalDateTime.now()) > 1) {
+						MessageTemplate template = properties.getPaymentMessageTemplate();
+						Long clientId = student.getClient().getId();
+						if (student.isNotifyEmail()) {
+							mailSendService.sendSimpleNotification(clientId, template.getTemplateText());
+						}
+						if (student.isNotifySMS()) {
+							smsService.sendSimpleSMS(clientId, template.getOtherText());
+						}
+						if (student.isNotifyVK()) {
+							vkService.simpleVKNotification(clientId, template.getOtherText());
+						}
+						if (student.isNotifySlack()) {
+							slackService.trySendSlackMessageToStudent(clientId, template.getOtherText());
+						}
+						student.setLastPaymentNotification(LocalDateTime.now());
+						studentService.update(student);
+					} else {
+						logger.info("Payment notification is already sent today to student with id {}", student.getId());
 					}
 				}
 			}

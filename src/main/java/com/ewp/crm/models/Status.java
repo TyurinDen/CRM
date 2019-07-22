@@ -1,6 +1,10 @@
 package com.ewp.crm.models;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import org.hibernate.annotations.BatchSize;
+import org.hibernate.annotations.Fetch;
+import org.hibernate.annotations.FetchMode;
 
 import javax.persistence.*;
 import java.io.Serializable;
@@ -11,6 +15,7 @@ import java.util.*;
  */
 @Entity
 @Table(name = "status")
+@JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
 public class Status implements Serializable {
 
 	@Id
@@ -40,13 +45,36 @@ public class Status implements Serializable {
 
 	/**
 	 * Клиенты (студенты) с данным статусом
+	 * OneToMany uses FetchType.LAZY by default.
+	 * We use FetchMode.SUBSELECT for loading all elements of all collections.
 	 */
 	@JsonIgnore
-	@OneToMany(fetch = FetchType.EAGER)
+	@OneToMany
+	@Fetch(value = FetchMode.SUBSELECT)
 	@JoinTable(name = "status_clients",
 			joinColumns = {@JoinColumn(name = "status_id", foreignKey = @ForeignKey(name = "FK_STATUS"))},
 			inverseJoinColumns = {@JoinColumn(name = "user_id", foreignKey = @ForeignKey(name = "FK_USER"))})
 	private List<Client> clients;
+
+	/**
+	 * ManyToMany uses FetchType.LAZY by default.
+	 * We use FetchMode.SUBSELECT because we have limited quantity of roles,
+	 * and almost all of them are in the session.
+	 */
+	@ManyToMany
+	@Fetch(value = FetchMode.SUBSELECT)
+	@JoinTable(name = "status_roles",
+			joinColumns = {@JoinColumn(name = "status_id", foreignKey = @ForeignKey(name = "FK_STATUS"))},
+			inverseJoinColumns = {@JoinColumn(name = "role_id", foreignKey = @ForeignKey(name = "FK_ROLE"))})
+	private List<Role> role;
+
+	public List<Role> getRole() {
+		return role;
+	}
+
+	public void setRole(List<Role> role) {
+		this.role = role;
+	}
 
 	/**
 	 * Становится ли клиент студентом при присвении ему данного статуса
@@ -66,8 +94,14 @@ public class Status implements Serializable {
 	@Column(name = "next_payment_offset")
 	private Integer nextPaymentOffset = 0;
 
+	/**
+	 * OneToMany uses FetchType.LAZY by default.
+	 * We use FetchMode.SUBSELECT because we have limited quantity of sortedStatuses,
+	 * and almost all of them are in the session.
+	 */
 	@JsonIgnore
 	@OneToMany(mappedBy = "sortedStatusesId.statusId")
+	@Fetch(value = FetchMode.SUBSELECT)
 	private Set<SortedStatuses> sortedStatuses = new HashSet<>();
 
 
@@ -78,6 +112,13 @@ public class Status implements Serializable {
 		this.createStudent = createStudent;
 		this.trialOffset = trialOffset;
 		this.nextPaymentOffset = nextPaymentOffset;
+	}
+
+	public Status(String name, Integer trialOffset, Integer nextPaymentOffset, List<Role> role) {
+		this.name = name;
+		this.trialOffset = trialOffset;
+		this.nextPaymentOffset = nextPaymentOffset;
+		this.role = role;
 	}
 
 	public Status(String name) {

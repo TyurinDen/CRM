@@ -2,11 +2,14 @@ package com.ewp.crm.controllers.rest;
 
 import com.ewp.crm.models.*;
 import com.ewp.crm.models.SortedStatuses.SortingType;
+import com.ewp.crm.models.dto.ClientCardDtoBuilder;
+import com.ewp.crm.repository.interfaces.ClientRepository;
 import com.ewp.crm.service.interfaces.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.env.Environment;
 import org.springframework.core.io.InputStreamResource;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
@@ -20,6 +23,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.io.*;
 import java.math.BigDecimal;
+import java.net.URLEncoder;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
@@ -34,40 +38,50 @@ public class ClientRestController {
     private static Logger logger = LoggerFactory.getLogger(ClientRestController.class);
 
     private final ClientService clientService;
-    private final SocialProfileTypeService socialProfileTypeService;
     private final UserService userService;
     private final ClientHistoryService clientHistoryService;
     private final MessageService messageService;
+    private final MailSendService mailSendService;
     private final ProjectPropertiesService propertiesService;
     private final SocialProfileService socialProfileService;
 	private final StatusService statusService;
 	private final StudentService studentService;
 	private final StudentStatusService studentStatusService;
+	private final ReportService reportService;
+	private String fileName;
+	private final ClientRepository clientRepository;
+	private Environment env;
 
     @Value("${project.pagination.page-size.clients}")
     private int pageSize;
 
 	@Autowired
     public ClientRestController(ClientService clientService,
-                                SocialProfileTypeService socialProfileTypeService,
                                 UserService userService,
                                 SocialProfileService socialProfileService,
                                 ClientHistoryService clientHistoryService,
                                 MessageService messageService,
+                                MailSendService mailSendService,
                                 ProjectPropertiesService propertiesService,
 								StatusService statusService,
                                 StudentService studentService,
-                                StudentStatusService studentStatusService) {
+                                StudentStatusService studentStatusService,
+								ReportService reportService,
+								ClientRepository clientRepository, Environment env) {
         this.clientService = clientService;
-        this.socialProfileTypeService = socialProfileTypeService;
         this.userService = userService;
         this.clientHistoryService = clientHistoryService;
         this.messageService = messageService;
+        this.mailSendService = mailSendService;
         this.propertiesService = propertiesService;
         this.socialProfileService = socialProfileService;
         this.statusService = statusService;
 		this.studentService = studentService;
 		this.studentStatusService = studentStatusService;
+		this.reportService = reportService;
+		this.fileName = new String();
+		this.clientRepository = clientRepository;
+		this.env = env;
 	}
 
 	@GetMapping(value = "/slack-invite-link/{clientId}")
@@ -77,14 +91,14 @@ public class ClientRestController {
     }
 
 	@GetMapping(produces = MediaType.APPLICATION_JSON_VALUE)
-	@PreAuthorize("hasAnyAuthority('OWNER', 'ADMIN', 'USER')")
+	@PreAuthorize("hasAnyAuthority('OWNER', 'ADMIN', 'USER','MENTOR','HR')")
 	public ResponseEntity<List<Client>> getAll() {
 		return ResponseEntity.ok(clientService.getAll());
 	}
 
     //запрос для вывода клиентов постранично - порядок из базы
     @GetMapping(value = "/pagination/get")
-    @PreAuthorize("hasAnyAuthority('OWNER', 'ADMIN', 'USER')")
+    @PreAuthorize("hasAnyAuthority('OWNER', 'ADMIN', 'USER','MENTOR','HR')")
     public ResponseEntity getClients(@RequestParam int page) {
         List<Client> clients = clientService.getAllClientsByPage(PageRequest.of(page, pageSize));
         if (clients == null || clients.isEmpty()) {
@@ -95,7 +109,7 @@ public class ClientRestController {
 
 	//запрос для вывода клиентов постранично - новые выше (16.10.18 установлен по дефолту для all-clients-table)
  	@GetMapping(value = "/pagination/new/first")
-	@PreAuthorize("hasAnyAuthority('OWNER', 'ADMIN', 'USER')")
+	@PreAuthorize("hasAnyAuthority('OWNER', 'ADMIN', 'USER','MENTOR','HR')")
 	public ResponseEntity getClientsNewFirst(@RequestParam int page) {
 		List<Client> clients = clientService.getAllClientsByPage(PageRequest.of(page, pageSize, Sort.by(Sort.Direction.DESC, "dateOfRegistration")));
 		if (clients == null || clients.isEmpty()) {
@@ -105,7 +119,7 @@ public class ClientRestController {
 	}
 
 	@GetMapping(value = "/sort")
-	@PreAuthorize("hasAnyAuthority('OWNER', 'ADMIN', 'USER')")
+	@PreAuthorize("hasAnyAuthority('OWNER', 'ADMIN', 'USER','HR')")
 	public ResponseEntity getClientsSort(@RequestParam int page, @RequestParam String columnName, @RequestParam boolean sortType) {
 		if (columnName.equals("dateOfLastChange")) {
 			List<Client> clients = clientService.getAllClientsSortingByLastChange();
@@ -144,7 +158,7 @@ public class ClientRestController {
 	}
 
 	@PostMapping(value = "/filtration/sort", produces = MediaType.APPLICATION_JSON_VALUE)
-	@PreAuthorize("hasAnyAuthority('OWNER', 'ADMIN', 'USER')")
+	@PreAuthorize("hasAnyAuthority('OWNER', 'ADMIN', 'USER','HR')")
 	public ResponseEntity getAllWithConditionsAndSort(@RequestParam String columnName, @RequestParam boolean sortType, @RequestBody FilteringCondition filteringCondition) {
 		List<Client> clients = clientService.getFilteringAndSortClients(filteringCondition, columnName);
 		if (sortType) {
@@ -158,12 +172,11 @@ public class ClientRestController {
 	}
 
 	@GetMapping(value = "/getClientsData")
-	@PreAuthorize("hasAnyAuthority('OWNER', 'ADMIN', 'USER')")
-	public ResponseEntity<InputStreamResource> getClientsData() {
-        //TODO test cross-platform separator
+	@PreAuthorize("hasAnyAuthority('OWNER', 'ADMIN', 'USER','MENTOR''HR')")
+	public ResponseEntity<InputStreamResource> getClientsData() throws UnsupportedEncodingException {
 		String path = "DownloadData" + File.separator;
-		File file = new File(path + "data.txt");
-
+		File file = new File(path + fileName);
+        String encodedFileName = URLEncoder.encode(file.getName(), "UTF-8");
 		InputStreamResource resource = null;
 		try {
 			resource = new InputStreamResource(new FileInputStream(file));
@@ -172,24 +185,24 @@ public class ClientRestController {
 		}
 		return ResponseEntity.ok()
 				.header(HttpHeaders.CONTENT_DISPOSITION,
-						"attachment;filename=" + file.getName())
+						"attachment;filename=" + encodedFileName)
 				.contentType(MediaType.TEXT_PLAIN).contentLength(file.length())
 				.body(resource);
 	}
 
 	@GetMapping(value = "/{id}", produces = MediaType.APPLICATION_JSON_VALUE)
-	@PreAuthorize("hasAnyAuthority('OWNER', 'ADMIN', 'USER')")
+	@PreAuthorize("hasAnyAuthority('OWNER', 'ADMIN', 'USER','MENTOR','HR')")
 	public ResponseEntity<Client> getClientByID(@PathVariable Long id) {
 		return ResponseEntity.ok(clientService.get(id));
 	}
 
 	@GetMapping(value = "/socialID", produces = MediaType.APPLICATION_JSON_VALUE)
-	@PreAuthorize("hasAnyAuthority('OWNER', 'ADMIN', 'USER')")
+	@PreAuthorize("hasAnyAuthority('OWNER', 'ADMIN', 'USER','MENTOR','HR')")
 	public ResponseEntity<Map<String,String>> getClientBySocialProfile(@RequestParam(name = "userID") String socialId,
-																	   @RequestParam(name = "socialProfileType") String socialProfileType,
+																	   @RequestParam(name = "socialNetworkType") String socialNetworkType,
 																	   @RequestParam(name = "unread") String unreadCount) {
 		Map<String, String> clientInfoMap = new HashMap<>();
-        Optional<SocialProfile> socialProfile = socialProfileService.getSocialProfileBySocialIdAndSocialType(socialId, socialProfileType);
+        Optional<SocialProfile> socialProfile = socialProfileService.getSocialProfileBySocialIdAndSocialType(socialId, socialNetworkType);
         if (socialProfile.isPresent()) {
 			Optional<Client> client = clientService.getClientBySocialProfile(socialProfile.get());
 			if (!client.isPresent()) {
@@ -206,7 +219,7 @@ public class ClientRestController {
 	}
 
 	@PostMapping(value = "/assign")
-	@PreAuthorize("hasAnyAuthority('OWNER', 'ADMIN', 'USER')")
+	@PreAuthorize("hasAnyAuthority('OWNER', 'ADMIN', 'USER','MENTOR','HR')")
 	public ResponseEntity<User> assign(@RequestParam(name = "clientId") Long clientId,
 									   @AuthenticationPrincipal User userFromSession) {
 		Client client = clientService.get(clientId);
@@ -222,7 +235,7 @@ public class ClientRestController {
 	}
 
 	@PostMapping(value = "/assign/user")
-	@PreAuthorize("hasAnyAuthority('OWNER', 'ADMIN', 'USER')")
+	@PreAuthorize("hasAnyAuthority('OWNER', 'ADMIN', 'USER','MENTOR','HR')")
 	public ResponseEntity assignUser(@RequestParam(name = "clientId") Long clientId,
 									 @RequestParam(name = "userForAssign") Long userId,
 									 @AuthenticationPrincipal User userFromSession) {
@@ -243,8 +256,34 @@ public class ClientRestController {
 		return ResponseEntity.ok(client.getOwnerUser());
 	}
 
+	@PostMapping(value = "/assign/mentor")
+	@PreAuthorize("hasAnyAuthority('OWNER', 'ADMIN', 'USER','MENTOR','HR')")
+	public ResponseEntity assignMentor(@RequestParam(name = "clientId") Long clientId,
+									 @RequestParam(name = "userForAssign") Long userId,
+									 @AuthenticationPrincipal User userFromSession) {
+		User assignUser = userService.get(userId);
+		Client client = clientService.get(clientId);
+		if (client.getOwnerMentor() != null && client.getOwnerMentor() .equals(assignUser)) {
+			logger.info("User {} tried to assign a client with id {}, but client have same owner {}", userFromSession.getEmail(), clientId, assignUser.getEmail());
+			return ResponseEntity.badRequest().build();
+		}
+		if (userFromSession.equals(assignUser)) {
+			clientHistoryService.createHistory(userFromSession, client, ClientHistory.Type.ASSIGN_MENTOR).ifPresent(client::addHistory);
+		} else {
+			clientHistoryService.createHistory(userFromSession, assignUser, client, ClientHistory.Type.ASSIGN_MENTOR).ifPresent(client::addHistory);
+		}
+		client.setOwnerMentor(assignUser);
+		if (assignUser.isEnableAsignMentorMailNotifications()) {
+			String notification = "К вам прикреплен студент " + client.getName() + client.getLastName();
+			mailSendService.sendNotificationMessage(assignUser, notification);
+		}
+		clientService.updateClient(client);
+		logger.info("User {} has assigned client with id {} to user {}", userFromSession.getEmail(), clientId, assignUser.getEmail());
+		return ResponseEntity.ok(client.getOwnerMentor());
+	}
+
 	@PostMapping(value = "/unassign")
-	@PreAuthorize("hasAnyAuthority('OWNER', 'ADMIN', 'USER')")
+	@PreAuthorize("hasAnyAuthority('OWNER', 'ADMIN', 'USER','MENTOR','HR')")
 	public ResponseEntity unassign(@RequestParam(name = "clientId") Long clientId,
 								   @AuthenticationPrincipal User userFromSession) {
 		Client client = clientService.get(clientId);
@@ -263,127 +302,76 @@ public class ClientRestController {
 		return ResponseEntity.ok(client.getOwnerUser());
 	}
 
+    @PostMapping(value = "/unassignMentor")
+    @PreAuthorize("hasAnyAuthority('OWNER', 'ADMIN', 'USER','MENTOR','HR')")
+    public ResponseEntity unassignMentor(@RequestParam(name = "clientId") Long clientId,
+                                   @AuthenticationPrincipal User userFromSession) {
+        Client client = clientService.get(clientId);
+        if (client.getOwnerMentor() == null) {
+            logger.info("User {} tried to unassign a client with id {}, but client already doesn't have owner", userFromSession.getEmail(), clientId);
+            return ResponseEntity.badRequest().build();
+        }
+        if (client.getOwnerMentor().equals(userFromSession)) {
+            clientHistoryService.createHistory(userFromSession, client, ClientHistory.Type.UNASSIGN_MENTOR).ifPresent(client::addHistory);
+        } else {
+            clientHistoryService.createHistory(userFromSession, client.getOwnerMentor(), client, ClientHistory.Type.UNASSIGN_MENTOR).ifPresent(client::addHistory);
+        }
+        client.setOwnerMentor(null);
+        clientService.updateClient(client);
+        logger.info("User {} has unassigned client with id {}", userFromSession.getEmail(), clientId);
+        return ResponseEntity.ok(client.getOwnerMentor());
+    }
+
 	@PostMapping(value = "/filtration", produces = MediaType.APPLICATION_JSON_VALUE)
-	@PreAuthorize("hasAnyAuthority('OWNER', 'ADMIN', 'USER')")
+	@PreAuthorize("hasAnyAuthority('OWNER', 'ADMIN', 'USER','HR')")
 	public ResponseEntity<List<Client>> getAllWithConditions(@RequestBody FilteringCondition filteringCondition) {
 		List<Client> clients = clientService.filteringClient(filteringCondition);
 		return ResponseEntity.ok(clients);
 	}
 
+	@PostMapping(value = "/filtrationWithoutPagination", produces = MediaType.APPLICATION_JSON_VALUE)
+	@PreAuthorize("hasAnyAuthority('OWNER', 'ADMIN', 'USER','HR')")
+	public ResponseEntity<List<Client>> getAllWithConditionsWithoutPagination(@RequestBody FilteringCondition filteringCondition) {
+		List<Client> clients = clientRepository.filteringClientWithoutPaginator(filteringCondition);
+		return ResponseEntity.ok(clients);
+	}
+
 	@PostMapping(value = "/createFile")
-	@PreAuthorize("hasAnyAuthority('OWNER', 'ADMIN', 'USER')")
-	public ResponseEntity createFile(@RequestParam(name = "selected") String selected) {
-
-		String path = "DownloadData";
-		File dir = new File(path);
-		if (!dir.exists()) {
-			if (!dir.mkdirs()) {
-				logger.error("Could not create folder for text files");
-			}
-		}
-		String fileName = "data.txt";
-		File file = new File(dir, fileName);
-		try {
-			if (!file.exists()) {
-				if (!file.createNewFile()) {
-					logger.error("File for clients not created!");
-				}
-			}
-		} catch (IOException e) {
-			e.printStackTrace();
-		}
-
-		try(FileWriter fileWriter = new FileWriter(file);
-            BufferedWriter bufferedWriter = new BufferedWriter(fileWriter)) {
-
-			if (socialProfileTypeService.getByTypeName(selected).isPresent()) {
-				List<SocialProfile> socialProfiles = socialProfileTypeService.getByTypeName(selected).get().getSocialProfileList();
-				for (SocialProfile socialProfile : socialProfiles) {
-					bufferedWriter.write(socialProfile.getSocialId() + "\r\n");
-				}
-			}
-			if (selected.equals("email")) {
-				List<String> emails = clientService.getClientsEmails();
-				for (String email : emails) {
-					if (email == null) {
-						email = "";
-					}
-					bufferedWriter.write(email + "\r\n");
-				}
-			}
-			if (selected.equals("phoneNumber")) {
-				List<String> phoneNumbers = clientService.getClientsPhoneNumbers();
-				for (String phoneNumber : phoneNumbers) {
-					if (phoneNumber == null) {
-						phoneNumber = "";
-					}
-					bufferedWriter.write(phoneNumber + "\r\n");
-				}
-			}
-		} catch (IOException e) {
-			logger.error("File not created! ", e);
+	@PreAuthorize("hasAnyAuthority('OWNER', 'ADMIN', 'USER','MENTOR','HR')")
+	public ResponseEntity createFile(@RequestBody ConditionToDownload conditionToDownload) {
+		fileName = reportService.getFileName(conditionToDownload.getSelected(),
+				conditionToDownload.getDelimeter(), conditionToDownload.getFiletype(), null).get();
+		if (conditionToDownload.getFiletype().equals("txt")) {
+			reportService.writeToFileWithConditionToDownload(conditionToDownload, fileName);
+		} else if (conditionToDownload.getFiletype().equals("xlsx")) {
+			reportService.writeToExcelFileWithConditionToDownload(conditionToDownload, fileName);
+		} else if (conditionToDownload.getFiletype().equals("csv")) {
+			reportService.writeToCSVFileWithConditionToDownload(conditionToDownload, fileName);
+		} else {
+			return ResponseEntity.badRequest().body("Can't parse condition to download.");
 		}
 		return ResponseEntity.ok(HttpStatus.OK);
 	}
 
-	@PostMapping(value = "/createFileFilter", produces = MediaType.APPLICATION_JSON_VALUE)
-	@PreAuthorize("hasAnyAuthority('OWNER', 'ADMIN', 'USER')")
+	@PostMapping(value = "/createFileFilter")
+	@PreAuthorize("hasAnyAuthority('OWNER', 'ADMIN', 'USER','MENTOR','HR')")
 	public ResponseEntity createFileWithFilter(@RequestBody FilteringCondition filteringCondition) {
-		String separator = "\r\n";
-		String path = "DownloadData";
-		File dir = new File(path);
-		if (!dir.exists()) {
-			if (!dir.mkdirs()) {
-				logger.error("Could not create folder for text files");
-			}
-		}
-		String fileName = "data.txt";
-		File file = new File(dir, fileName);
-		try {
-			if (!file.exists()) {
-				if (!file.createNewFile()) {
-					logger.error("Text file for filtered clients not created!");
-				}
-			}
-		} catch (IOException e) {
-			e.printStackTrace();
-		}
-
-		try(FileWriter fileWriter = new FileWriter(file);
-            BufferedWriter bufferedWriter = new BufferedWriter(fileWriter)) {
-
-			if (socialProfileTypeService.getByTypeName(filteringCondition.getSelected()).isPresent()) {
-				List<String> socialNetworkLinks = clientService.getFilteredClientsSNLinks(filteringCondition);
-				for (String socialNetworkLink : socialNetworkLinks) {
-				    if (socialNetworkLink != null && !socialNetworkLink.isEmpty()) {
-                        bufferedWriter.write(socialNetworkLink + System.lineSeparator());
-                    }
-				}
-			}
-			if (filteringCondition.getSelected().equals("email")) {
-				List<String> emails = clientService.getFilteredClientsEmail(filteringCondition);
-				for (String email : emails) {
-					if (email != null && !email.isEmpty()) {
-						bufferedWriter.write(email + System.lineSeparator());
-					}
-				}
-			}
-			if (filteringCondition.getSelected().equals("phoneNumber")) {
-				List<String> phoneNumbers = clientService.getFilteredClientsPhoneNumber(filteringCondition);
-				for (String phoneNumber : phoneNumbers) {
-					if (phoneNumber != null && !phoneNumber.isEmpty()) {
-						bufferedWriter.write(phoneNumber + System.lineSeparator());
-					}
-				}
-			}
-		} catch (IOException e) {
-			logger.error("File not created! ", e);
+		fileName = reportService.getFileName(filteringCondition.getSelectedCheckbox(),
+				filteringCondition.getDelimeter(), filteringCondition.getFiletype(), filteringCondition.getStatus()).get();
+		if (filteringCondition.getFiletype().equals("txt")) {
+			reportService.writeToFileWithFilteringConditions(filteringCondition, fileName);
+		} else if (filteringCondition.getFiletype().equals("xlsx")) {
+			reportService.writeToExcelFileWithFilteringConditions(filteringCondition, fileName);
+		} else if (filteringCondition.getFiletype().equals("csv")) {
+			reportService.writeToCSVFileWithFilteringConditions(filteringCondition, fileName);
+		} else {
+			return ResponseEntity.badRequest().body("Can't parse filtering condition.");
 		}
 		return ResponseEntity.ok(HttpStatus.OK);
 	}
 
 	@PostMapping(value = "/postpone")
-	@PreAuthorize("hasAnyAuthority('OWNER', 'ADMIN', 'USER')")
+	@PreAuthorize("hasAnyAuthority('OWNER', 'ADMIN', 'USER','MENTOR','HR')")
 	public ResponseEntity postponeClient(@RequestParam Long clientId,
 										 @RequestParam String date,
 										 @RequestParam Boolean isPostponeFlag,
@@ -395,7 +383,7 @@ public class ClientRestController {
 			ZonedDateTime postponeDate = LocalDateTime.parse(date, dateTimeFormatter).atZone(ZoneId.systemDefault());
 			if (postponeDate.isBefore(ZonedDateTime.now()) || postponeDate.isEqual(ZonedDateTime.now())) {
 				logger.info("Wrong postpone date: {}", date);
-				return ResponseEntity.badRequest().body("Дата должна быть позже текущей даты");
+				return ResponseEntity.badRequest().body(env.getProperty("messaging.client.rest.wrong-postpone-date"));
 			}
             if(isPostponeFlag) {
                 client.setHideCard(true);
@@ -408,12 +396,12 @@ public class ClientRestController {
             logger.info("{} has postponed client id:{} until {}", userFromSession.getFullName(), client.getId(), date);
 			return ResponseEntity.ok(HttpStatus.OK);
 		} catch (Exception e) {
-			return ResponseEntity.badRequest().body("Произошла ошибка");
+			return ResponseEntity.badRequest().body(env.getProperty("messaging.client.rest.postpone-error"));
 		}
 	}
 
 	@PostMapping(value = "/remove/postpone")
-	@PreAuthorize("hasAnyAuthority('OWNER', 'ADMIN', 'USER')")
+	@PreAuthorize("hasAnyAuthority('OWNER', 'ADMIN', 'USER','MENTOR','HR')")
 	public ResponseEntity removePostpone(@RequestParam Long clientId,
 										 @AuthenticationPrincipal User userFromSession) {
 		try {
@@ -425,23 +413,23 @@ public class ClientRestController {
 			logger.info("{} remove from postpone client id:{}", userFromSession.getFullName(), client.getId());
 			return ResponseEntity.ok(HttpStatus.OK);
 		} catch (Exception e) {
-            return ResponseEntity.badRequest().body("Произошла ошибка");
+            return ResponseEntity.badRequest().body(env.getProperty("messaging.client.rest.postpone-error"));
         }
 	}
 
 	@PostMapping(value = "/addDescription")
-	@PreAuthorize("hasAnyAuthority('OWNER', 'ADMIN', 'USER')")
+	@PreAuthorize("hasAnyAuthority('OWNER', 'ADMIN', 'USER','MENTOR','HR')")
 	public ResponseEntity<String> addDescription(@RequestParam(name = "clientId") Long clientId,
 												 @RequestParam(name = "clientDescription") String clientDescription,
 												 @AuthenticationPrincipal User userFromSession) {
 		Client client = clientService.get(clientId);
 		if (client == null) {
 			logger.error("Can`t add description, client with id {} not found or description is the same", clientId);
-			return ResponseEntity.status(HttpStatus.NOT_FOUND).body("client not found or description is same");
+			return ResponseEntity.status(HttpStatus.NOT_FOUND).body(env.getProperty("messaging.client.rest.description-error"));
 		}
 		if (client.getClientDescriptionComment() != null && client.getClientDescriptionComment().equals(clientDescription)) {
 			logger.error("Client has same description");
-			return ResponseEntity.badRequest().body("Client has same description");
+			return ResponseEntity.badRequest().body(env.getProperty("messaging.client.rest.description-same-error"));
 		}
 		client.setClientDescriptionComment(clientDescription);
 		clientHistoryService.createHistory(userFromSession, client, ClientHistory.Type.DESCRIPTION).ifPresent(client::addHistory);
@@ -450,7 +438,7 @@ public class ClientRestController {
 	}
 
 	@PostMapping(value = "/setSkypeLogin")
-	@PreAuthorize("hasAnyAuthority('OWNER', 'ADMIN', 'USER')")
+	@PreAuthorize("hasAnyAuthority('OWNER', 'ADMIN', 'USER','MENTOR','HR')")
 	public ResponseEntity<String> setClientSkypeLogin(@RequestParam(name = "clientId") Long clientId,
 													  @RequestParam(name = "skypeLogin") String skypeLogin,
 													  @AuthenticationPrincipal User userFromSession) {
@@ -458,11 +446,11 @@ public class ClientRestController {
 		Optional<Client> checkDuplicateLogin = clientService.getClientBySkype(skypeLogin);
 		if (client == null) {
 			logger.error("Client with id {} not found", clientId);
-			return ResponseEntity.status(HttpStatus.NOT_FOUND).body("client not found or description is same");
+			return ResponseEntity.status(HttpStatus.NOT_FOUND).body(env.getProperty("messaging.client.rest.description-error"));
 		}
 		if (checkDuplicateLogin.isPresent() && checkDuplicateLogin.get().getSkype().equals(skypeLogin)) {
 			logger.error("client with this skype login already exists");
-			return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("client with this skype login already exists");
+			return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(env.getProperty("messaging.client.rest.skype-login-same-error"));
 		}
 		client.setSkype(skypeLogin);
 		clientHistoryService.createInfoHistory(userFromSession, client, ClientHistory.Type.ADD_LOGIN, skypeLogin).ifPresent(client::addHistory);
@@ -471,33 +459,33 @@ public class ClientRestController {
 	}
 
 	@GetMapping(value = "/message/info/{id}")
-	@PreAuthorize("hasAnyAuthority('OWNER', 'ADMIN', 'USER')")
+	@PreAuthorize("hasAnyAuthority('OWNER', 'ADMIN', 'USER','MENTOR','HR')")
 	public ResponseEntity<Message> getClientMessageInfoByID(@PathVariable("id") Long id) {
 		return new ResponseEntity<>(messageService.get(id), HttpStatus.OK);
 	}
 
 	@GetMapping(value = "/search")
-	@PreAuthorize("hasAnyAuthority('OWNER', 'ADMIN', 'USER')")
+	@PreAuthorize("hasAnyAuthority('OWNER', 'ADMIN', 'USER','HR')")
 	public ResponseEntity<List<Client>> getClientsBySearchPhrase(@RequestParam(name = "search") String search) {
 		return new ResponseEntity<>(clientService.getClientsBySearchPhrase(search), HttpStatus.OK);
 	}
 
     @PostMapping(value = "/postpone/getComment")
-    @PreAuthorize("hasAnyAuthority('OWNER', 'ADMIN', 'USER')")
+    @PreAuthorize("hasAnyAuthority('OWNER', 'ADMIN', 'USER','HR')")
     public ResponseEntity<String> getPostponeComment(@RequestParam Long clientId) {
         String postponeComment = clientService.get(clientId).getPostponeComment();
         return ResponseEntity.status(HttpStatus.OK).body(postponeComment);
     }
 
     @PostMapping(value = "/setRepeated")
-    @PreAuthorize("hasAnyAuthority('OWNER', 'ADMIN', 'USER')")
+    @PreAuthorize("hasAnyAuthority('OWNER', 'ADMIN', 'USER', 'MENTOR','HR')")
     public ResponseEntity<String> setRepeated(@RequestParam(name = "clientId") Long clientId,
                                               @RequestParam(name = "isRepeated") Boolean isRepeated,
                                               @AuthenticationPrincipal User userFromSession) {
         Client client = clientService.get(clientId);
         if (client == null) {
             logger.error("Can`t add description, client with id {} not found or description is the same", clientId);
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("client not found or description is same");
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(env.getProperty("messaging.client.rest.description-error"));
         }
         if (client.isRepeated()) {
             clientHistoryService.createHistory(userFromSession, client, ClientHistory.Type.DESCRIPTION).ifPresent(client::addHistory);
@@ -505,7 +493,7 @@ public class ClientRestController {
         client.setRepeated(isRepeated);
 
         clientService.updateClient(client);
-        return ResponseEntity.status(HttpStatus.OK).body("done");
+        return ResponseEntity.status(HttpStatus.OK).body(env.getProperty("messaging.client.rest.repeated-client-updated"));
     }
 
     @PostMapping(value = "/order")
@@ -523,7 +511,8 @@ public class ClientRestController {
 									@RequestParam(name = "nextPaymentList") String nextPaymentList,
 									@RequestParam(name = "priceList") String priceList,
 									@RequestParam(name = "paymentSumList") String paymentSumList,
-									@RequestParam(name = "studentStatus") String studentStatusId) {
+									@RequestParam(name = "studentStatus") String studentStatusId,
+									@AuthenticationPrincipal User userFromSession) {
 
 		List<String> resultEmailList = Arrays.asList(emailList.split("\n"));
 		List<String> resultFioList = Arrays.asList(fioList.split("\n"));
@@ -554,12 +543,10 @@ public class ClientRestController {
 					studentService.save(setStudentParams(newStudent, endTrialDate, nextPaymentDate, price, paymentAmount,studentStatus));
 				}
 			} else {
-				Client newClient = new Client();
-                newClient.setName(nameAndLastNameArr[0].trim());
-                newClient.setLastName(nameAndLastNameArr[1].trim());
-                newClient.setEmail(resultEmailList.get(i).trim());
+				Client.Builder newClientBuilder = new Client.Builder(nameAndLastNameArr[0].trim(), null, resultEmailList.get(i).trim());
+                Client newClient = newClientBuilder.lastName(nameAndLastNameArr[1].trim()).build();
 				statusService.get(1L).ifPresent(newClient::setStatus);
-				clientService.addClient(newClient);
+				clientService.addClient(newClient, userFromSession);
 				Student createStudent = new Student();
 				createStudent.setClient(newClient);
 				studentService.save(setStudentParams(createStudent, endTrialDate, nextPaymentDate, price, paymentAmount,studentStatus));
@@ -577,4 +564,23 @@ public class ClientRestController {
 		return student;
 	}
 
+	@GetMapping("/card/{id}")
+	@PreAuthorize("hasAnyAuthority('OWNER', 'ADMIN', 'USER','MENTOR','HR')")
+	public ResponseEntity<String> getClientCardDto(@PathVariable Long id) {
+		return ResponseEntity.ok(ClientCardDtoBuilder.buildClientCardDto(clientService.get(id), statusService.getAll()));
+	}
+
+	@GetMapping
+	public ResponseEntity<Student> getStudentByEmail(@RequestParam("email") String email) {
+		ResponseEntity result;
+		try {
+			Client client = clientService.getClientByEmail(email)
+					.orElseThrow(() -> new RuntimeException("Client with email not found" + email));
+			result = ResponseEntity.ok(client);
+		} catch (RuntimeException rte) {
+			logger.info("Student with email {} not found", email);
+			result = new ResponseEntity(HttpStatus.NOT_FOUND);
+		}
+		return result;
+	}
 }

@@ -2,6 +2,7 @@ package com.ewp.crm.service.impl;
 
 import com.ewp.crm.controllers.rest.IPTelephonyRestController;
 import com.ewp.crm.models.*;
+import com.ewp.crm.models.dto.ClientHistoryDto;
 import com.ewp.crm.repository.interfaces.ClientHistoryRepository;
 import com.ewp.crm.service.interfaces.AssignSkypeCallService;
 import com.ewp.crm.service.interfaces.ClientHistoryService;
@@ -44,17 +45,27 @@ public class ClientHistoryServiceImpl implements ClientHistoryService {
 	}
 
 	@Override
-	public List<ClientHistory> getClientById(long id) {
+	public List<ClientHistory> getByClientId(long id) {
 		return clientHistoryRepository.getByClientId(id);
 	}
 
 	@Override
-	public List<ClientHistory> getAllClientById(long id, Pageable pageable) {
+	public Optional<ClientHistory> getFirstByClientId(long id) {
+		return Optional.ofNullable(clientHistoryRepository.getFirstByClientId(id));
+	}
+
+	@Override
+	public List<ClientHistory> getAllByClientId(long id, Pageable pageable) {
 		return clientHistoryRepository.getAllByClientId(id, pageable).stream().peek((h) -> {
 			if (h.getType().equals(ClientHistory.Type.CALL) && (h.getLink() == null || IPTelephonyRestController.INIT_RECORD_LINK.equals(h.getLink()))) {
 				h.setTitle(h.getTitle() + ClientHistory.Type.CALL_WITHOUT_RECORD.getInfo());
 			}
 		}).collect(Collectors.toList());
+	}
+
+	@Override
+	public List<ClientHistoryDto> getAllDtoByClientId(long id, int page, int pageSize, boolean isAsc) {
+		return clientHistoryRepository.getAllDtoByClientId(id, page, pageSize, isAsc);
 	}
 
 	@Override
@@ -125,6 +136,16 @@ public class ClientHistoryServiceImpl implements ClientHistoryService {
         ClientHistory clientHistory = new ClientHistory(ClientHistory.Type.STATUS);
         String action = user.getFullName() + " " + ClientHistory.Type.STATUS.getInfo();
         clientHistory.setTitle(action + " " + client.getStatus() + " из " + lastStatus);
+        return Optional.of(clientHistory);
+    }
+
+	//change status on [status] from [last_status]
+    @Override
+	public Optional<ClientHistory> createHistoryOfChangingStatus(Client client, Status lastStatus) {
+        logger.info("creation of client history...");
+        ClientHistory clientHistory = new ClientHistory(ClientHistory.Type.STATUS);
+        String action = ClientHistory.Type.STATUS.getInfo();
+        clientHistory.setTitle("Автоматически " + action + " " + client.getStatus() + " из " + lastStatus);
         return Optional.of(clientHistory);
     }
 
@@ -228,7 +249,7 @@ public class ClientHistoryServiceImpl implements ClientHistoryService {
 		ClientHistory history = new ClientHistory(type);
 		history.setTitle(user.getFullName() + " " + type.getInfo());
 
-		Optional<Message> message = messageService.addMessage(Message.Type.DATA, "Email: " + client.getEmail() + " -> null");
+		Optional<Message> message = messageService.addMessage(Message.Type.DATA, "Email: " + client.getEmail().orElse("not found") + " -> null");
 		if (message.isPresent()) {
 			history.setMessage(message.get());
 			history.setLink(message.get().getId().toString());
@@ -242,7 +263,7 @@ public class ClientHistoryServiceImpl implements ClientHistoryService {
 		ClientHistory history = new ClientHistory(type);
 		history.setTitle(user.getFullName() + " " + type.getInfo());
 
-		Optional<Message> message = messageService.addMessage(Message.Type.DATA, "Phone: " + client.getPhoneNumber() + " -> null");
+		Optional<Message> message = messageService.addMessage(Message.Type.DATA, "Phone: " + client.getPhoneNumber().orElse("not found") + " -> null");
 		if (message.isPresent()) {
 			history.setMessage(message.get());
 			history.setLink(message.get().getId().toString());

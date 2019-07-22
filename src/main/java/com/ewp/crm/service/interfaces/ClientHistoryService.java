@@ -1,6 +1,7 @@
 package com.ewp.crm.service.interfaces;
 
 import com.ewp.crm.models.*;
+import com.ewp.crm.models.dto.ClientHistoryDto;
 import org.springframework.data.domain.Pageable;
 
 import java.util.List;
@@ -15,6 +16,8 @@ public interface ClientHistoryService {
 	Optional<ClientHistory> createHistory(User user, Client client, ClientHistory.Type type);
 
 	Optional<ClientHistory> createHistoryOfChangingStatus(User user, Client client, Status lastStatus);
+
+	Optional<ClientHistory> createHistoryOfChangingStatus(Client client, Status lastStatus);
 
 	Optional<ClientHistory> createHistory(User admin, User worker, Client client, ClientHistory.Type type);
 
@@ -38,7 +41,11 @@ public interface ClientHistoryService {
 
 	Optional<ClientHistory> createHistoryOfDeletingPhone(User user, Client client, ClientHistory.Type type);
 
-	List<ClientHistory> getClientById(long id);
+	List<ClientHistory> getByClientId(long id);
 
-	List<ClientHistory> getAllClientById(long id, Pageable pageable);
+	Optional<ClientHistory> getFirstByClientId(long id);
+
+	List<ClientHistory> getAllByClientId(long id, Pageable pageable);
+
+	List<ClientHistoryDto> getAllDtoByClientId(long id, int page, int pageSize, boolean isAsc);
 }

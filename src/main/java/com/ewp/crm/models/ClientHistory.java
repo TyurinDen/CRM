@@ -25,11 +25,7 @@ public class ClientHistory {
 
 	@Column(name = "record_link")
 	private String recordLink;
-
-    //TODO потом переделать
-    //@Basic
-    //private String date = DateTime.now().toString("HH:mm ddMMM yyyy'г'");
-
+	
     @Column(name = "date")
     private ZonedDateTime date;
 
@@ -141,7 +137,9 @@ public class ClientHistory {
 		NOTIFICATION("прочитал напоминание"),
 		ASSIGN("прикрепил"),
 		UNASSIGN("открепил"),
-		CALL("совершил звонок"),
+        ASSIGN_MENTOR("прикрепил ментора"),
+        UNASSIGN_MENTOR("открепил ментора"),
+		CALL("совершил(а) звонок"),
 		CALL_WITHOUT_RECORD(", не дозвонился"),
 		SEND_MESSAGE("отправил сообщение по"),
 		ADD("добавил вручную"),

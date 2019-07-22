@@ -3,14 +3,13 @@ package com.ewp.crm.service.interfaces;
 import com.ewp.crm.models.*;
 import com.ewp.crm.models.SortedStatuses.SortingType;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.repository.Query;
 
 import java.time.ZonedDateTime;
 import java.util.List;
 import java.util.Optional;
 
-
 public interface ClientService extends CommonService<Client> {
-
     boolean hasClientSocialProfileByType(Client client, String socialProfileType);
 
     boolean inviteToSlack(Client client, String name, String lastName, String email);
@@ -39,7 +38,7 @@ public interface ClientService extends CommonService<Client> {
 
 	Optional<Client> getClientBySocialProfile(SocialProfile socialProfile);
 
-	void addClient(Client client);
+	void addClient(Client client, User user);
 
 	void updateClient(Client client);
 
@@ -63,6 +62,8 @@ public interface ClientService extends CommonService<Client> {
 
 	List<String> getFilteredClientsSNLinks(FilteringCondition filteringCondition);
 
+	void setClientDateOfRegistrationByHistoryDate(Client client);
+
 	List<Client> getAllClientsByPage(Pageable pageable);
 
 	List<Client> getClientsBySearchPhrase(String search);
@@ -82,4 +83,10 @@ public interface ClientService extends CommonService<Client> {
 	Optional<Comment> getLastComment(Client client);
 
 	Optional<ClientHistory> getLastHistory(Client client);
+
+	void transferClientsBetweenOwners(User sender, User receiver);
+
+	void setOtherInformationLink(Long clientId, String hash);
+
+	List<Client> getClientsByEmails(List<String> emails);
 }

@@ -1,6 +1,8 @@
 package com.ewp.crm.service.slack;
 
 import com.ewp.crm.models.*;
+import com.ewp.crm.models.SocialProfile.SocialNetworkType;
+import com.ewp.crm.repository.interfaces.StudentRepository;
 import com.ewp.crm.service.interfaces.*;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.http.HttpEntity;
@@ -23,6 +25,8 @@ import org.springframework.stereotype.Service;
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.net.URLEncoder;
+import java.time.ZonedDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.*;
 
 @Service
@@ -37,21 +41,27 @@ public class SlackServiceImpl implements SlackService {
     private static Logger logger = LoggerFactory.getLogger(SlackServiceImpl.class);
     private final StudentService studentService;
     private final ProjectProperties projectProperties;
-    private final SocialProfileTypeService socialProfileTypeService;
     private final SocialProfileService socialProfileService;
     private final ClientService clientService;
     private final String slackWorkspaceUrl;
-    private final String appToken;
+    private String appToken;
     private final String legacyToken;
     private final String generalChannelId;
     private final String defaultPrivateGroupNameTemplate;
+    private final AssignSkypeCallService assignSkypeCallService;
+    private final MessageTemplateService messageTemplateService;
+    private final StudentRepository studentRepository;
 
     @Autowired
     public SlackServiceImpl(Environment environment, StudentService studentService,
-                            SocialProfileTypeService socialProfileTypeService, ClientService clientService,
-                            SocialProfileService socialProfileService, ProjectPropertiesService projectPropertiesService) {
+                            ClientService clientService,
+                            SocialProfileService socialProfileService,
+                            ProjectPropertiesService projectPropertiesService,
+                            AssignSkypeCallService assignSkypeCallService,
+                            MessageTemplateService messageTemplateService,
+                            StudentRepository studentRepository) {
         this.appToken = assignPropertyToString(environment,
-                "slack.appToken",
+                "slack.appToken1",
                     "Can't get 'slack.appToken' get it from https://api.slack.com/apps");
         this.legacyToken = assignPropertyToString(environment,
                 "slack.legacyToken",
@@ -66,10 +76,12 @@ public class SlackServiceImpl implements SlackService {
                 "slack.group.default.name.template",
                     "Can't get 'slack.group.default.name.template' please check slack.properties file");
         this.studentService = studentService;
-        this.socialProfileTypeService = socialProfileTypeService;
         this.clientService = clientService;
         this.socialProfileService = socialProfileService;
         this.projectProperties = projectPropertiesService.getOrCreate();
+        this.assignSkypeCallService = assignSkypeCallService;
+        this.messageTemplateService = messageTemplateService;
+        this.studentRepository = studentRepository;
     }
 
     private String assignPropertyToString(Environment environment, String propertyName, String errorText) {
@@ -81,6 +93,14 @@ public class SlackServiceImpl implements SlackService {
         return result;
     }
 
+    public void setAppToken(String number, Environment environment){
+
+        this.appToken = assignPropertyToString(environment,
+                "slack.appToken" + number,
+                "Can't get 'slack.appToken' get it from https://api.slack.com/apps");
+        System.out.println(appToken);
+    }
+
     @Override
     public boolean tryLinkSlackAccountToStudent(long studentId) {
         Optional<String> allWorkspaceUsersData = receiveAllClientsFromWorkspace();
@@ -89,18 +109,17 @@ public class SlackServiceImpl implements SlackService {
 
     @Override
     public void tryLinkSlackAccountToAllStudents() {
-        Optional<SocialProfileType> slackType = socialProfileTypeService.getByTypeName("slack");
-        if (slackType.isPresent()) {
             Optional<String> allWorkspaceUsersData = receiveAllClientsFromWorkspace();
             if (allWorkspaceUsersData.isPresent()) {
-                List<SocialProfileType> excludeSocialProfileTypes = Arrays.asList(slackType.get());
+                List<Student> empty = studentRepository.getStudentsByClientSocialProfiles_Empty();
+                List<SocialNetworkType> excludeSocialProfileTypes = Arrays.asList(SocialNetworkType.SLACK);
                 List<Student> students = studentService.getStudentsWithoutSocialProfileByType(excludeSocialProfileTypes);
+                students.addAll(empty);
                 for (Student student : students) {
                     tryLinkSlackAccountToStudent(student.getId(), allWorkspaceUsersData.get());
                 }
             }
         }
-    }
 
     @Override
     public boolean tryLinkSlackAccountToStudent(long studentId, String slackAllUsersJsonResponse) {
@@ -118,7 +137,7 @@ public class SlackServiceImpl implements SlackService {
             String id = profile.id;
             String name = profile.name;
             String email = profile.mail;
-            if (email != null && !email.isEmpty() && email.equals(client.getEmail())) {
+            if (email != null && !email.isEmpty() && client.getEmail().isPresent() && email.equals(client.getEmail().get())) {
                 currentWeight += emailWeight;
             }
             if (name != null) {
@@ -136,34 +155,40 @@ public class SlackServiceImpl implements SlackService {
         if (!matchesWithWeight.isEmpty()) {
             Optional<Map.Entry<String, Double>> maximumMatch = matchesWithWeight.entrySet().stream().max(Map.Entry.comparingByValue());
             if (maximumMatch.isPresent()) {
-                Optional<SocialProfileType> slackSocialProfileTypeOpt = socialProfileTypeService.getByTypeName("slack");
-                if (slackSocialProfileTypeOpt.isPresent()) {
-                    String slackId = maximumMatch.get().getKey();
-                    SocialProfileType slackSocialProfileType = slackSocialProfileTypeOpt.get();
-                    if (!socialProfileService.getSocialProfileBySocialIdAndSocialType(slackId, slackSocialProfileType.getName()).isPresent()) {
-                        client.addSocialProfile(new SocialProfile(slackId, slackSocialProfileType));
+
+                String slackId = maximumMatch.get().getKey();
+
+                    if (!socialProfileService.getSocialProfileBySocialIdAndSocialType(slackId, SocialNetworkType.SLACK.getName()).isPresent()) {
+                        client.addSocialProfile(new SocialProfile(slackId, SocialNetworkType.SLACK));
                         clientService.updateClient(client);
                     }
                     return true;
-                }
+
             }
         }
         return false;
     }
 
     @Override
-    public boolean trySendSlackMessageToStudent(long studentId, String text) {
-        Student student = studentService.get(studentId);
-        if (student != null) {
-            Client client = student.getClient();
+    public boolean trySendSlackMessageToStudent(long clientId, String text) {
+        Optional<Client> clientOptional = clientService.getClientByID(clientId);
+        Optional<AssignSkypeCall> assignSkypeCall = assignSkypeCallService.getAssignSkypeCallByClientId(clientId);
+        Client client;
+        AssignSkypeCall skypeCall;
+        ZonedDateTime zonedDateTime;
+        String body = "";
+        if (clientOptional.isPresent()) {
+            client = clientOptional.get();
+            if (assignSkypeCall.isPresent()) {
+                skypeCall = assignSkypeCall.get();
+                zonedDateTime = skypeCall.getSkypeCallDate();
+                body = zonedDateTime.format(DateTimeFormatter.ofPattern("dd.MM.YY в HH-mm"));
+            }
             List<SocialProfile> profiles = client.getSocialProfiles();
             for (SocialProfile socialProfile :profiles) {
-                if ("slack".equals(socialProfile.getSocialProfileType().getName())) {
-                    return trySendMessageToSlackUser(socialProfile.getSocialId(), text);
+                if ("slack".equals(socialProfile.getSocialNetworkType().getName())) {
+                    return trySendMessageToSlackUser(socialProfile.getSocialId(), messageTemplateService.prepareText(client, text, body));
                 }
-            }
-            if (tryLinkSlackAccountToStudent(studentId)) {
-                return trySendSlackMessageToStudent(studentId, text);
             }
         }
         return false;
@@ -330,6 +355,9 @@ public class SlackServiceImpl implements SlackService {
             HttpEntity entity = response.getEntity();
             json = EntityUtils.toString(entity);
             JSONObject jsonObj = new JSONObject(json);
+            if (!jsonObj.optBoolean("ok")) {
+                logger.error(jsonObj.toString());
+            }
             return jsonObj.optBoolean("ok");
         } catch (IOException e) {
             logger.error("Can't get response when inviting user to Slack", e);
@@ -337,6 +365,11 @@ public class SlackServiceImpl implements SlackService {
             logger.error(String.format("Can't parse response when inviting user to Slack, json = %s", json), e);
         }
         return false;
+    }
+
+    @Override
+    public boolean inviteToWorkspace(String email) {
+        return inviteToWorkspace("", "", email);
     }
 
     @Override
@@ -383,7 +416,10 @@ public class SlackServiceImpl implements SlackService {
             JSONObject jsonObj = new JSONObject(json);
             String sendResult = jsonObj.optString("ok");
             if ("true".equals(sendResult)) {
+                logger.debug("Message to Slack channel "+channelId+" sending!");
                 return true;
+            } else if ("false".equals(sendResult)) {
+                logger.error("Message to Slack channel "+channelId+" don't sending because " + jsonObj.toString());
             }
         } catch (IOException e) {
             logger.error("Can't post message to Slack channel " + channelId, e);
@@ -429,5 +465,4 @@ public class SlackServiceImpl implements SlackService {
             this.name = name;
         }
     }
-
 }

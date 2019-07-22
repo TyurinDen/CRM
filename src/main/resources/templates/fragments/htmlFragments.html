@@ -2,6 +2,7 @@
 <html lang="en" xmlns:th="http://www.thymeleaf.org"
       xmlns:sec="http://www.thymeleaf.org/thymeleaf-extras-springsecurity4">
 <head>
+    <link rel="stylesheet" href="/css/style.css"/>
 </head>
 <body>
 <th:block th:fragment="left-panel">
@@ -30,12 +31,15 @@
                 <ul class="nav navbar-nav">
                     <li><a href="/client">Доска</a></li>
                     <li><a href="/client/allClients">Все клиенты</a></li>
-                    <li><a href="/student/all" sec:authorize="hasAnyAuthority('OWNER')">Все студенты</a></li>
-                    <li><a href="/student-status/all" sec:authorize="hasAnyAuthority('OWNER')">Статусы обучения</a></li>
-                    <li><a href="/client/mailing" sec:authorize="hasAnyAuthority('OWNER', 'ADMIN')">Рассылка</a></li>
-                    <li><a href="/template/all" sec:authorize="hasAnyAuthority('OWNER', 'ADMIN')">Шаблоны</a></li>
-                    <li><a href="/vk/campaigns/all" sec:authorize="hasAnyAuthority('OWNER', 'ADMIN')">Продвижение</a></li>
-                    <li><a href="/calls" sec:authorize="hasAnyAuthority('OWNER', 'ADMIN')">Звонки</a></li>
+                    <li><a href="/student/all" sec:authorize="hasAnyAuthority('OWNER','HR')">Все студенты</a></li>
+                    <li><a href="/hr/students" sec:authorize="hasAnyAuthority('OWNER', 'ADMIN', 'HR')">Пропавшие студенты</a></li>
+                    <li><a href="/student-status/all" sec:authorize="hasAnyAuthority('OWNER','HR')">Статусы обучения</a></li>
+                    <li><a href="/client/mailing" sec:authorize="hasAnyAuthority('OWNER', 'ADMIN', 'MENTOR','HR')">Рассылка</a></li>
+                    <li><a href="/template/all" sec:authorize="hasAnyAuthority('OWNER', 'ADMIN','HR')">Шаблоны</a></li>
+                    <li><a href="/vk/campaigns/all" sec:authorize="hasAnyAuthority('OWNER', 'ADMIN','HR')">Продвижение</a></li>
+                    <li><a href="/calls" sec:authorize="hasAnyAuthority('OWNER', 'ADMIN', 'MENTOR','HR')">Звонки</a></li>
+                    <li><a href="/mentors" sec:authorize="hasAnyAuthority('OWNER', 'ADMIN', 'MENTOR')">Менторы</a></li>
+                    <li><a href="/hr/managers" sec:authorize="hasAnyAuthority('OWNER', 'ADMIN', 'MENTOR')">Координаторы</a></li>
 
                     <li th:if="${#httpServletRequest.getRequestURI() == '/client'}">
                         <div class="search-place">
@@ -55,7 +59,7 @@
                         </div>
                     </li>
 
-                    <li class="dropdown" th:if="${#httpServletRequest.getRequestURI() == '/client'}">
+                    <li class="dropdown" th:if="${#httpServletRequest.getRequestURI() == '/client'}" sec:authorize="hasAnyAuthority('OWNER', 'ADMIN')">
                         <a class="glyphicon glyphicon-bell redBell"
                            th:style="${notifications.size() > 0} ? 'color:red' : ''" data-toggle="dropdown" id="bell"></a>
                         <ul class="dropdown-menu notification-dropdown" id = "Notify">
@@ -160,6 +164,7 @@
 </th:block>
 
 <th:block th:fragment="header">
+    <link rel="icon" type="image/png" th:href="@{/images/favico.png}"/>
     <link href="https://maxcdn.bootstrapcdn.com/font-awesome/4.2.0/css/font-awesome.min.css" rel="stylesheet"/>
     <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css"
           integrity="sha384-BVYiiSIFeK1dGmJRAkycuHAHRg32OmUcww7on3RYdg4Va+PmSTsz/K68vbdEjh4u"
@@ -225,7 +230,7 @@
                 <div class="panel-heading">
                     <span><h4>Комментарии:</h4></span>
                     <div class="form-group comment-div">
-                <textarea class="form-control textcomplete graur-class" th:id="'new-text-for-client'"
+                        <textarea class="form-control textcomplete graur-class" th:id="'new-text-for-client'"
                           placeholder="Напишите комментарий"></textarea>
                     </div>
                     <ul class="list-group main-modal-comment">
@@ -276,15 +281,55 @@
                         <span aria-hidden="true">&times;</span>
                     </button>
                 </div>
-                <div class="modal-body">
-                    <select class="form-control" id="selectType" name="selectType">
-                        <th:block th:each="socialProfileType : ${socialProfileTypes}">
-                            <option th:value="${socialProfileType.name}" th:text="${socialProfileType.name}"></option>
+                <div id="modal-body">
+                    <div id="checkboxes">
+                        <div class="container">
+                            <label class="checkbox" th:for="name">Имя</label>
+                            <input type="checkbox" th:value="name" th:id="name"/>
+                        </div>
+                        <div class="container">
+                            <label class="checkbox" th:for="lastName">Фамилия</label>
+                            <input type="checkbox" th:value="lastName" th:id="lastName"/>
+                        </div>
+                        <div class="container">
+                            <label class="checkbox" th:for="email" th:value="email" th:text="Email"></label>
+                            <input type="checkbox" th:value="email" th:id="email"/>
+                        </div>
+                        <div class="container">
+                            <label class="checkbox" th:for="phoneNumber">Номер телефона</label>
+                            <input type="checkbox" th:value="phoneNumber" th:id="phoneNumber"/>
+                        </div>
+                        <th:block th:each="socialNetworkType : ${socialNetworkTypes}">
+                            <div class="container">
+                                <label class="checkbox" th:for="${socialNetworkType.id}"
+                                       th:text="${socialNetworkType.name}"></label>
+                                <input type="checkbox" th:value="${socialNetworkType.name}"
+                                       th:id="${socialNetworkType.id}"/>
+                            </div>
                         </th:block>
-                        <option id="email" name="email" th:value="email">Email</option>
-                        <option id="phoneNumber" name="phoneNumber" th:value="phoneNumber">Номер телефона</option>
-                    </select>
-
+                    </div>
+                    <h5>Выберите тип файла: </h5>
+                    <div class="container" id="radiobuttons">
+                        <div class="container">
+                            <label class="radio">
+                                <input type="radio" class="custom-control-input" checked="checked" value="txt" name="fileType" />TXT
+                            </label>
+                        </div>
+                        <div class="container">
+                            <label class="radio">
+                                <input type="radio" class="custom-control-input" value="xlsx" name="fileType" />Excel
+                            </label>
+                        </div>
+                        <div class="container">
+                            <label class="radio">
+                                <input type="radio" class="custom-control-input" value="csv" name="fileType" />CSV
+                            </label>
+                        </div>
+                    </div>
+                    <div class="col-xs-12">
+                        <input type="form" th:id="delimeter"/>
+                        <label th:for="delimeter">Разделитель</label>
+                    </div>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-dismiss="modal">Закрыть</button>
@@ -320,22 +365,31 @@
 </th:block>
 
 <th:block th:fragment="deleteUser">
-    <div th:each="usr : ${users}">
-        <div class="modal fade" th:id="'deleteUserModal' + ${usr.id}" tabindex="-1" role="dialog" aria-hidden="true">
-            <div class="modal-dialog">
-                <div class="modal-content">
-                    <div class="modal-header">
-                        <h5 class="modal-title">Подтвердите свое действие</h5>
-                    </div>
-                    <div class="modal-body">
-                        <h6>Вы уверены, что хотите удалить пользователя?</h6>
-                    </div>
-                    <div class="modal-footer">
-                        <button type="button" class="btn btn-primary" th:onclick="'deleteUser('+ ${usr.id} + ')'">
-                            Да
-                        </button>
-                        <button type="button" class="btn btn-secondary" data-dismiss="modal">Нет</button>
-                    </div>
+    <div class="modal fade" id="deleteUserModal" role="dialog" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Перед удалением выберите пользователя для передачи клиентов</h5>
+                </div>
+                <div class="modal-body">
+                    <form id="deleteUserForm">
+                        <div class="custom-control custom-radio">
+                            <table id="usersTable" class="table table-striped">
+                                <thead>
+                                <tr>
+                                    <th>Пользователи</th>
+                                </tr>
+                                </thead>
+                                <tbody>
+                                </tbody>
+                            </table>
+                            <h6>Вы уверены, что хотите удалить пользователя?</h6>
+                            <button type="submit" class="btn btn-primary">Да</button>
+                            <button type="button" class="btn btn-secondary" data-dismiss="modal">Нет</button>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
                 </div>
             </div>
         </div>
@@ -528,6 +582,16 @@
                                            th:value="${status.nextPaymentOffset} - ${status.trialOffset}"/></td>
                             </tr>
                         </table>
+                        <div class="form-group" th:id ="'checkbox_status_roles_' + ${status.id} " sec:authorize="hasAnyAuthority('OWNER', 'ADMIN')">
+                            <label th:for="'checkbox_status_roles_' + ${status.id} ">Роли</label>
+                            <div th:id="'current_status_roles_' + ${status.id} ">
+                                <span th:each="role : ${status.role}" th:value="${role.id}"></span>
+                            </div>
+                            <div class="checkbox" th:each="role : ${roles}">
+                                <input type="checkbox" th:id="'checkbox-role-' + ${role.id} + ${status.id}" th:value="${role.id}"/>
+                                <label th:for="'checkbox-role-' + ${role.id} + ${status.id}" th:text="${role.roleName}"></label>
+                            </div>
+                        </div>
                     </div>
                     <button type="button" class="btn btn-primary" data-dismiss="modal">Закрыть</button>
                     <button type="button" class="btn btn-primary"
@@ -588,7 +652,7 @@
                     <h5 class="modal-title">Создание нового статуса</h5>
                 </div>
                 <div class="modal-body">
-                    <h6>Стутус по умолчанию не задан. Введите имя нового статуса</h6>
+                    <h6>Статус по умолчанию не задан. Введите имя нового статуса</h6>
                     <div class="form-group">
                         <input id="default-status-name" type="text" class="form-control"
                                placeholder="Введите название статуса"/>
@@ -708,7 +772,7 @@
 </th:block>
 
 <th:block th:fragment="updateSocialNetworkType">
-    <div th:attr="id=${socialProfileType.id}" class="modal fade" role="dialog">
+    <div th:attr="id=${socialNetworkType.id}" class="modal fade" role="dialog">
 
         <div class="modal-dialog">
             <form role="form" id="updateTypeForm" th:action="@{/admin/user/updateSocialNetworkType}" method="post">
@@ -726,9 +790,9 @@
                                 <label for="updateType">Name</label>
                                 <input type="text" id="updateType" name="name"
                                        class="form-control"
-                                       th:value="${socialProfileType.name}"/>
+                                       th:value="${socialNetworkType.name}"/>
 
-                                <input type="hidden" id="typeId" name="id" th:value="${socialProfileType.id}"/>
+                                <input type="hidden" id="typeId" name="id" th:value="${socialNetworkType.id}"/>
 
                             </div>
                         </div>
@@ -776,12 +840,40 @@
                         <a data-toggle="collapse" data-parent="#actionsAccordion" class="upload-history collapsed">Действия</a>
                     </h4>
                 </div>
-                <div th:id="'collapse'" class="panel-collapse collapse client-collapse">
+                <div th:id="'collapse'" class="panel-collapse collapse client-collapse history">
                     <div class="panel-body">
                         <table class="table table-bordered history-line" th:id="'client-string-history'">
+                            <thead>
+                                <tr class="head-table">
+                                    <th><button type="button" class="btn btn-secondary">Подробности</button></th>
+                                    <th><button id="date" onclick="resortClientHistory(this)" type="button" class="btn btn-default btn-secondary">Дата<i class="fa fa-fw fa-sort-up"></i></button></th>
+                                </tr>
+                            </thead>
                             <tbody></tbody>
                         </table>
                         <button type="button" data-page="1" class="btn upload-more-history">Загрузить ещё</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</th:block>
+
+<th:block th:fragment="historyAllCalls">
+    <div class="modal-header">
+        <div class="panel-group" id="actionCallsModal">
+            <div class="panel panel-default">
+                <div class="panel-heading">
+                    <h4 class="panel-title">
+                        <a data-toggle="collapse" data-parent="#actionCallsModal" class="upload-calls-history collapsed">Действия</a>
+                    </h4>
+                </div>
+                <div th:id="'calls-collapse'" class="all-calls panel-collapse collapse">
+                    <div class="panel-body">
+                        <table class="table table-bordered calls-history-line" th:id="'calls-history-all-client'">
+                            <tbody></tbody>
+                        </table>
+                        <button type="button" data-page="1" class="btn upload-more-calls-history" style="width: 100%">Загрузить ещё</button>
                     </div>
                 </div>
             </div>

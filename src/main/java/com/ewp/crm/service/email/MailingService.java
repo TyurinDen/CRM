@@ -1,7 +1,6 @@
 package com.ewp.crm.service.email;
 
 
-import com.ewp.crm.configs.inteface.VKConfig;
 import com.ewp.crm.exceptions.parse.ParseMailingDataException;
 import com.ewp.crm.models.ClientData;
 import com.ewp.crm.models.MailingMessage;
@@ -13,6 +12,7 @@ import com.ewp.crm.service.interfaces.VKService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.core.env.Environment;
 import org.springframework.core.io.FileSystemResource;
 import org.springframework.core.io.InputStreamSource;
 import org.springframework.mail.javamail.JavaMailSender;
@@ -22,6 +22,7 @@ import org.thymeleaf.TemplateEngine;
 import org.thymeleaf.context.Context;
 
 import javax.mail.MessagingException;
+import javax.mail.internet.InternetAddress;
 import javax.mail.internet.MimeMessage;
 import java.io.File;
 import java.io.IOException;
@@ -39,6 +40,7 @@ public class MailingService {
     private static final String EMAIL_PATTERN = "\\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\\.[A-Z]{2,4}\\b";
     private static final String SMS_PATTERN = "\\d{11}|(?:\\d{3}-){2}\\d{4}|\\(\\d{3}\\)\\d{3}-?\\d{4}";
     private static final String SLACK_PATTERN = ".+";
+    private static final int MAXMESSAGESINPOOL = 20;
 
     private final JavaMailSender javaMailSender;
     private final SMSService smsService;
@@ -46,19 +48,19 @@ public class MailingService {
     private final SlackService slackService;
     private final MailingMessageRepository mailingMessageRepository;
     private final TemplateEngine htmlTemplateEngine;
-    private final VKConfig vkConfig;
+    private Environment env;
 
     @Autowired
     public MailingService(SMSService smsService, VKService vkService, JavaMailSender javaMailSender,
                           MailingMessageRepository mailingMessageRepository, TemplateEngine htmlTemplateEngine,
-                          SlackService slackService, VKConfig vkConfig) {
+                          SlackService slackService, Environment env) {
         this.smsService = smsService;
         this.vkService = vkService;
         this.javaMailSender = javaMailSender;
         this.mailingMessageRepository = mailingMessageRepository;
         this.htmlTemplateEngine = htmlTemplateEngine;
         this.slackService = slackService;
-        this.vkConfig = vkConfig;
+        this.env = env;
     }
 
     public MailingMessage addMailingMessage(MailingMessage message) {
@@ -109,15 +111,35 @@ public class MailingService {
         return result;
     }
 
+    public String getNextPoolOfEmails(Queue<String> queueOfAllEmails){
+        StringBuilder emailBuilder = new StringBuilder();
+
+        int counter = 0;
+        while(counter<MAXMESSAGESINPOOL && queueOfAllEmails.size()>0){
+            emailBuilder.append(queueOfAllEmails.poll());
+            counter++;
+            if(counter!=MAXMESSAGESINPOOL)emailBuilder.append(",");
+        }
+        return emailBuilder.toString();
+    }
+
     private boolean sendingMailingsEmails(MailingMessage message) {
         boolean result = false;
         try {
             final MimeMessage mimeMessage = javaMailSender.createMimeMessage();
             final MimeMessageHelper mimeMessageHelper = new MimeMessageHelper(mimeMessage, true, "UTF-8");
-            for (ClientData email : message.getClientsData()) {
-                mimeMessageHelper.setFrom("Java-Mentor.ru");
-                mimeMessageHelper.setTo(email.getInfo());
-                mimeMessageHelper.setSubject("Ваш личный Java наставник");
+
+            Queue<String> queue = new ArrayDeque<>();
+            message.getClientsData().stream().forEach(i -> queue.add(i.getInfo()));
+
+            while(!queue.isEmpty()){
+                // берем по 20 емэйл сообщений, забирая их из пула и отправляем и группами
+                String emails = getNextPoolOfEmails(queue);
+
+                mimeMessageHelper.setFrom(env.getProperty("messaging.mailing.set-from-Java-Mentor"));
+                mimeMessageHelper.setBcc(InternetAddress.parse(emails));
+
+                mimeMessageHelper.setSubject(env.getProperty("messaging.mailing.set-subject-personal-mentor"));
                 final Context ctx = new Context();
                 String templateText = message.getText().replaceAll("\n", "");
                 ctx.setVariable("templateText", templateText);
@@ -138,11 +160,12 @@ public class MailingService {
                 }
                 javaMailSender.send(mimeMessage);
             }
+
             message.setReadedMessage(true);
             mailingMessageRepository.save(message);
             result = true;
         } catch (MessagingException e) {
-            logger.info("Message no sent.", e);
+            logger.info("Message not sent.", e);
         } catch (NullPointerException e) {
             logger.info("No recipients found, clientData is empty.", e);
         } catch (IOException e) {
@@ -180,8 +203,8 @@ public class MailingService {
         for (ClientData idVk : message.getClientsData()) {
             try {
                 Thread.sleep(1000);
-                String value = vkService.sendMessageById(Long.parseLong(idVk.getInfo()), message.getText(), vkConfig.getCommunityToken());
-                if (!value.equalsIgnoreCase("Message sent")) {
+                String value = vkService.sendMessageById(Long.parseLong(idVk.getInfo()), message.getText(), message.getVkType());
+                if (!value.equalsIgnoreCase(env.getProperty("messaging.vk.send-ok"))) {
                     notSendList.add(value);
                 }
                 message.setReadedMessage(true);
@@ -201,7 +224,7 @@ public class MailingService {
             try {
                 Thread.sleep(1000);
                 String value = vkService.sendMessageById(Long.parseLong(idVk.getInfo()), message.getText());
-                if (!value.equalsIgnoreCase("Message sent")) {
+                if (!value.equalsIgnoreCase(env.getProperty("messaging.vk.send-ok"))) {
                     notSendList.add(value);
                     message.setNotSendId(notSendList);
                 }
@@ -257,7 +280,7 @@ public class MailingService {
                 pattern = EMAIL_PATTERN;
                 break;
             default:
-                throw new ParseMailingDataException("Incorrect input data for mailing: messageType = " + messageType);
+                throw new ParseMailingDataException(env.getProperty("messaging.mailing.exception.parse-data") + messageType);
         }
         addMailingToSendQueue(messageType, recipients, text, pattern, destinationDate, user);
     }

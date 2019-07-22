@@ -13,6 +13,8 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.HandlerMapping;
 
 import javax.servlet.http.HttpServletRequest;
+import java.time.ZonedDateTime;
+import java.time.temporal.ChronoUnit;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
@@ -20,7 +22,7 @@ import java.util.function.Supplier;
 
 @RestController
 @RequestMapping("/rest/student")
-@PreAuthorize("hasAnyAuthority('OWNER')")
+@PreAuthorize("hasAnyAuthority('OWNER', 'HR')")
 public class StudentRestController {
 
     private static Logger logger = LoggerFactory.getLogger(StudentRestController.class);
@@ -37,16 +39,20 @@ public class StudentRestController {
 
     private final StatusService statusService;
 
+    private final ClientStatusChangingHistoryService clientStatusChangingHistoryService;
+
     @Autowired
     public StudentRestController(StudentService studentService, ClientService clientService,
                                  ClientHistoryService clientHistoryService, StudentStatusService studentStatusService,
-                                 ProjectPropertiesService projectPropertiesService, StatusService statusService) {
+                                 ProjectPropertiesService projectPropertiesService, StatusService statusService,
+                                 ClientStatusChangingHistoryService clientStatusChangingHistoryService) {
         this.studentService = studentService;
         this.clientService = clientService;
         this.clientHistoryService = clientHistoryService;
         this.studentStatusService = studentStatusService;
         this.projectPropertiesService = projectPropertiesService;
         this.statusService = statusService;
+        this.clientStatusChangingHistoryService = clientStatusChangingHistoryService;
     }
 
     @GetMapping ("/{id}")
@@ -57,6 +63,19 @@ public class StudentRestController {
             result = ResponseEntity.ok(student);
         } else {
             logger.info("Student with id {} not found", id);
+            result = new ResponseEntity(HttpStatus.NOT_FOUND);
+        }
+        return result;
+    }
+
+    @GetMapping
+    public ResponseEntity<Student> getStudentByEmail(@RequestParam("email") String email) {
+        ResponseEntity result;
+        Student student = studentService.getStudentByEmail(email);
+        if (student != null) {
+            result = ResponseEntity.ok(student);
+        } else {
+            logger.info("Student with email {} not found", email);
             result = new ResponseEntity(HttpStatus.NOT_FOUND);
         }
         return result;
@@ -83,8 +102,24 @@ public class StudentRestController {
         if (updatedClient.getLastName() != null && !updatedClient.getLastName().isEmpty()) {
             client.setLastName(updatedClient.getLastName());
         }
-        if (updatedClient.getEmail() != null && !updatedClient.getEmail().isEmpty()) {
-            client.setEmail(updatedClient.getEmail());
+        if (updatedClient.getEmail().isPresent() && !updatedClient.getEmail().get().isEmpty()) {
+            client.setEmail(updatedClient.getEmail().get());
+        }
+        if (student.getNextPaymentDate() != null) {
+            if (!student.getNextPaymentDate().truncatedTo(ChronoUnit.DAYS).equals(previous.getNextPaymentDate().truncatedTo(ChronoUnit.DAYS)) &&
+                    "На пробных".equals(client.getStatus().getName())) {
+                Status oldStatus = client.getStatus();
+                client.setStatus(statusService.get("Учатся").orElseThrow(() -> new IllegalArgumentException("Status \"Учатся\" doesn't exist!")));
+                clientHistoryService.createHistoryOfChangingStatus(userFromSession, client, oldStatus).ifPresent(client::addHistory);
+                ClientStatusChangingHistory clientStatusChangingHistory = new ClientStatusChangingHistory(
+                        ZonedDateTime.now(),
+                        oldStatus,
+                        client.getStatus(),
+                        client,
+                        userFromSession);
+                clientStatusChangingHistoryService.add(clientStatusChangingHistory);
+                logger.info("{} has changed status of client with id: {} to status \"Учатся\" by the way change next payment date.", userFromSession.getFullName(), client.getId());
+            }
         }
         studentService.update(student);
         clientService.updateClient(client);

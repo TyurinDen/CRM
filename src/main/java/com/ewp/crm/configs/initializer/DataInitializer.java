@@ -1,18 +1,49 @@
 package com.ewp.crm.configs.initializer;
 
 import com.ewp.crm.configs.inteface.VKConfig;
-import com.ewp.crm.exceptions.member.NotFoundMemberList;
-import com.ewp.crm.models.*;
+import com.ewp.crm.models.CallRecord;
+import com.ewp.crm.models.Client;
+import com.ewp.crm.models.Job;
+import com.ewp.crm.models.ListMailingType;
+import com.ewp.crm.models.MessageTemplate;
+import com.ewp.crm.models.Role;
+import com.ewp.crm.models.SMSInfo;
+import com.ewp.crm.models.SocialProfile;
+import com.ewp.crm.models.SocialProfile.SocialNetworkType;
+import com.ewp.crm.models.Status;
+import com.ewp.crm.models.StudentStatus;
+import com.ewp.crm.models.User;
+import com.ewp.crm.models.VkRequestForm;
 import com.ewp.crm.repository.interfaces.vkcampaigns.VkAttemptResponseRepository;
 import com.ewp.crm.service.conversation.JMConversationHelper;
-import com.ewp.crm.service.interfaces.*;
+import com.ewp.crm.service.interfaces.CallRecordService;
+import com.ewp.crm.service.interfaces.ClientHistoryService;
+import com.ewp.crm.service.interfaces.ClientService;
+import com.ewp.crm.service.interfaces.ListMailingTypeService;
+import com.ewp.crm.service.interfaces.MessageTemplateService;
+import com.ewp.crm.service.interfaces.RoleService;
+import com.ewp.crm.service.interfaces.StatusService;
+import com.ewp.crm.service.interfaces.StudentService;
+import com.ewp.crm.service.interfaces.StudentStatusService;
+import com.ewp.crm.service.interfaces.UserService;
+import com.ewp.crm.service.interfaces.VKService;
+import com.ewp.crm.service.interfaces.VkMemberService;
+import com.ewp.crm.service.interfaces.VkRequestFormService;
+import com.ewp.crm.service.interfaces.VkTrackedClubService;
 import com.ewp.crm.service.interfaces.vkcampaigns.VkCampaignService;
 import com.github.javafaker.Faker;
 import org.springframework.beans.factory.annotation.Autowired;
 
-import java.math.BigDecimal;
-import java.time.*;
-import java.util.*;
+import java.time.Instant;
+import java.time.LocalDate;
+import java.time.LocalTime;
+import java.time.ZoneId;
+import java.time.ZonedDateTime;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.LinkedList;
+import java.util.List;
 
 public class DataInitializer {
 
@@ -44,9 +75,6 @@ public class DataInitializer {
     private MessageTemplateService MessageTemplateService;
 
     @Autowired
-    private SocialProfileTypeService socialProfileTypeService;
-
-    @Autowired
     private ClientHistoryService clientHistoryService;
 
     @Autowired
@@ -70,21 +98,24 @@ public class DataInitializer {
     @Autowired
     private JMConversationHelper jmConversationHelper;
 
+    @Autowired
+    private CallRecordService callRecordService;
+
     private void init() {
 
         // DEFAULT STATUS AND FIRST STATUS FOR RELEASE
         Status defaultStatus = new Status("deleted", true, 5L, false, 0, 0);
         Status status0 = new Status("New clients", false, 1L, false, 0, 0);
-        Status status_all = new Status("Select all", false, 1L, false, 0, 0);
 
-        Role roleAdmin = new Role("ADMIN");
-        Role roleOwner = new Role("OWNER");
-        Role roleUser = new Role("USER");
-        Role roleMentor = new Role("MENTOR");
-        roleService.add(roleAdmin);
-        roleService.add(roleUser);
-        roleService.add(roleOwner);
-        roleService.add(roleMentor);
+        Role[] roles = {new Role("ADMIN"),
+                new Role("MENTOR"),
+                new Role("OWNER"),
+                new Role("USER"),
+                new Role("HR")};
+
+        for (Role role : roles) {
+            roleService.add(role);
+        }
 
         ListMailingType vkList = new ListMailingType("vk");
         ListMailingType emailList = new ListMailingType("email");
@@ -94,19 +125,6 @@ public class DataInitializer {
         listMailingTypeService.add(emailList);
         listMailingTypeService.add(slackList);
         listMailingTypeService.add(smsList);
-
-        SocialProfileType VK = new SocialProfileType("vk", "https://vk.com/id");
-        SocialProfileType FACEBOOK = new SocialProfileType("facebook");
-        SocialProfileType UNKNOWN = new SocialProfileType("unknown");
-        SocialProfileType TELEGRAM = new SocialProfileType("telegram");
-        SocialProfileType whatsApp = new SocialProfileType("whatsapp");
-        SocialProfileType slack = new SocialProfileType("slack");
-        socialProfileTypeService.add(VK);
-        socialProfileTypeService.add(FACEBOOK);
-        socialProfileTypeService.add(UNKNOWN);
-        socialProfileTypeService.add(TELEGRAM);
-        socialProfileTypeService.add(whatsApp);
-        socialProfileTypeService.add(slack);
 
         User admin = new User(
                 "Stanislav",
@@ -125,24 +143,31 @@ public class DataInitializer {
         userService.add(admin);
 
         User user1 = new User("Ivan", "Ivanov", LocalDate.of(1992, 9, 24), "79123456789", "user1@mail.ru",
-                "user", null, Client.Sex.MALE.toString(), "Minsk", "Belarus", Collections.singletonList(roleService.getRoleByName("USER")), true, false);
+                "user", null, Client.Sex.MALE.toString(), "Minsk", "Belarus",
+                Collections.singletonList(roleService.getRoleByName("USER")), true, false);
         userService.add(user1);
 
         User user2 = new User("Petr", "Petrov", LocalDate.of(1984, 4, 22), "89118465234", "user2@mail.ru",
-                "user", null, Client.Sex.MALE.toString(), "Tver", "Russia", Arrays.asList(roleService.getRoleByName("USER"), roleService.getRoleByName("MENTOR")), true, true);
+                "user", null, Client.Sex.MALE.toString(), "Tver", "Russia",
+                Arrays.asList(roleService.getRoleByName("USER"),
+                        roleService.getRoleByName("MENTOR")), true, true);
         userService.add(user2);
 
         User user3 = new User("Vlad", "Mentor", LocalDate.of(1990, 11, 12), "89118465234", "photolife9112@gmail.com",
-                "user", null, Client.Sex.MALE.toString(), "Tver", "Russia", Collections.singletonList(roleService.getRoleByName("MENTOR")), true, true);
+                "user", null, Client.Sex.MALE.toString(), "Tver", "Russia",
+                Collections.singletonList(roleService.getRoleByName("MENTOR")), true, true);
         userService.add(user3);
 
         User user4 = new User("Nikita", "Mentor", LocalDate.of(1994, 2, 5), "89118465234", "ccfilcc@gmail.com",
-                "user", null, Client.Sex.MALE.toString(), "Tver", "Russia", Collections.singletonList(roleService.getRoleByName("MENTOR")), true, true);
+                "user", null, Client.Sex.MALE.toString(), "Tver", "Russia",
+                Collections.singletonList(roleService.getRoleByName("MENTOR")), true, true);
         userService.add(user4);
 
         User user5 = new User("Benedikt", "Manager", LocalDate.of(1988, 7, 19), "9999999999", "qqfilqq@gmail.com",
-                "user", null, Client.Sex.MALE.toString(), "Tver", "Russia", Arrays.asList(roleService.getRoleByName("USER"), roleService.getRoleByName("ADMIN"),
-                roleService.getRoleByName("OWNER")), true, true);
+                "user", null, Client.Sex.MALE.toString(), "Tver", "Russia",
+                Arrays.asList(roleService.getRoleByName("USER"),
+                        roleService.getRoleByName("ADMIN"),
+                        roleService.getRoleByName("OWNER")), true, true);
         userService.add(user5);
 
         String templateText5 = "<!DOCTYPE html>\n" +
@@ -212,13 +237,14 @@ public class DataInitializer {
                 "С наилучшими пожеланиями, команда JavaMentor.";
         String otherText1 = "%bodyText%";
         String defaultText = "Пожалуйста введите текст сообщения";
+        String defaultTheme = "Java mentor";
 
-        MessageTemplate MessageTemplate5 = new MessageTemplate("Автоответ из Java-Mentor", templateText5, otherText5);
-        MessageTemplate MessageTemplate4 = new MessageTemplate("Беседа по Skype", templateText4, otherText4);
-        MessageTemplate MessageTemplate3 = new MessageTemplate("Не дозвонился", templateText3, otherText3);
-        MessageTemplate MessageTemplate2 = new MessageTemplate("Оплата за обучение", templateText2, otherText2);
-        MessageTemplate MessageTemplate1 = new MessageTemplate("После разговора", templateText1, otherText1);
-        MessageTemplate MessageTemplateWithoutTemplate = new MessageTemplate("Без шаблона", templateText1, defaultText);
+        MessageTemplate MessageTemplate5 = new MessageTemplate("Автоответ из Java-Mentor", templateText5, otherText5,defaultTheme);
+        MessageTemplate MessageTemplate4 = new MessageTemplate("Беседа по Skype", templateText4, otherText4, defaultTheme);
+        MessageTemplate MessageTemplate3 = new MessageTemplate("Не дозвонился", templateText3, otherText3, defaultTheme);
+        MessageTemplate MessageTemplate2 = new MessageTemplate("Оплата за обучение", templateText2, otherText2, defaultTheme);
+        MessageTemplate MessageTemplate1 = new MessageTemplate("После разговора", templateText1, otherText1, defaultTheme);
+        MessageTemplate MessageTemplateWithoutTemplate = new MessageTemplate("Без шаблона", templateText1, defaultText, defaultTheme);
 
         MessageTemplateService.add(MessageTemplate1);
         MessageTemplateService.add(MessageTemplate2);
@@ -233,10 +259,42 @@ public class DataInitializer {
         Status status4 = new Status("endLearningStatus", false, 5L, false, 0, 0);
         Status status5 = new Status("dropOut Status", false, 6L, false, 0, 0);
 
-        Client client1 = new Client("Юрий", "Долгоруков", "79999992288", "u.dolg@mail.ru", LocalDate.parse("1995-09-24"), Client.Sex.MALE, "Тула", "Россия", Client.State.FINISHED, ZonedDateTime.now());
-        Client client2 = new Client("Вадим", "Бойко", "89687745632", "vboyko@mail.ru", LocalDate.parse("1989-08-04"), Client.Sex.MALE, "Тула", "Россия", Client.State.LEARNING, ZonedDateTime.ofInstant(Instant.now().minusMillis(200000000), ZoneId.systemDefault()));
-        Client client3 = new Client("Александра", "Соловьева", "78300029530", "a.solo@mail.ru", LocalDate.parse("1975-03-10"), Client.Sex.FEMALE, "Тула", "Россия", Client.State.LEARNING, ZonedDateTime.ofInstant(Instant.now().minusMillis(300000000), ZoneId.systemDefault()));
-        Client client4 = new Client("Иван", "Федоров", "78650824705", "i.fiod@mail.ru", LocalDate.parse("1995-05-04"), Client.Sex.MALE, "Тула", "Россия", Client.State.NEW, ZonedDateTime.ofInstant(Instant.now().minusMillis(400000000), ZoneId.systemDefault()));
+        Client.Builder clientBuilder1 = new Client.Builder("Юрий", "79999992288", "u.dolg@mail.ru");
+        Client client1 = clientBuilder1.lastName("Долгоруков")
+                .birthDate(LocalDate.parse("1995-09-24"))
+                .sex(Client.Sex.MALE)
+                .city("Тула")
+                .country("Россия")
+                .build();
+        client1.setState(Client.State.FINISHED);
+        Client.Builder clientBuilder2 = new Client.Builder("Вадим", "89687745632", "vboyko@mail.ru");
+        Client client2 = clientBuilder2.lastName("Бойко")
+                .birthDate(LocalDate.parse("1989-08-04"))
+                .sex(Client.Sex.MALE)
+                .city("Тула")
+                .country("Россия")
+                .build();
+        client2.setState(Client.State.LEARNING);
+        client2.setDateOfRegistration(ZonedDateTime.ofInstant(Instant.now().minusMillis(200000000), ZoneId.systemDefault()));
+        Client.Builder clientBuilder3 = new Client.Builder("Александра", "78300029530", "a.solo@mail.ru");
+        Client client3 = clientBuilder3.lastName("Соловьева")
+                .birthDate(LocalDate.parse("1975-03-10"))
+                .sex(Client.Sex.FEMALE)
+                .city("Тула")
+                .country("Россия")
+                .build();
+        client3.setState(Client.State.LEARNING);
+        client3.setDateOfRegistration(ZonedDateTime.ofInstant(Instant.now().minusMillis(300000000), ZoneId.systemDefault()));
+        Client.Builder clientBuilder4 = new Client.Builder("Иван", "78650824705", "i.fiod@mail.ru");
+        Client client4 = clientBuilder4.lastName("Федоров")
+                .birthDate(LocalDate.parse("1995-05-04"))
+                .sex(Client.Sex.MALE)
+                .city("Тула")
+                .country("Россия")
+                .build();
+        client4.setState(Client.State.NEW);
+        client4.setDateOfRegistration(ZonedDateTime.ofInstant(Instant.now().minusMillis(400000000), ZoneId.systemDefault()));
+
         client1.addSMSInfo(new SMSInfo(123456789L, "SMS Message to client 1", admin));
         client2.addSMSInfo(new SMSInfo(12345678L, "SMS Message to client 2", admin));
         client3.addSMSInfo(new SMSInfo(1234567L, "SMS Message to client 3", admin));
@@ -246,45 +304,34 @@ public class DataInitializer {
         clientHistoryService.createHistory("инициализации crm").ifPresent(client3::addHistory);
         clientHistoryService.createHistory("инициализации crm").ifPresent(client4::addHistory);
         List<SocialProfile> spList1 = new ArrayList<>();
-        socialProfileTypeService.getByTypeName("vk").ifPresent(s -> spList1.add(new SocialProfile("https://vk.com/id1", s)));
-        socialProfileTypeService.getByTypeName("facebook").ifPresent(s -> spList1.add(  new SocialProfile("https://fb.com/id1", s)));
+        spList1.add(new SocialProfile("https://vk.com/id1", SocialNetworkType.VK));
+        spList1.add(new SocialProfile("https://fb.com/id-1", SocialNetworkType.FACEBOOK));
         client1.setSocialProfiles(spList1);
         List<SocialProfile> spList2 = new ArrayList<>();
-        socialProfileTypeService.getByTypeName("vk").ifPresent(s -> spList2.add(new SocialProfile("https://vk.com/id6", s)));
-        socialProfileTypeService.getByTypeName("facebook").ifPresent(s -> spList2.add(new SocialProfile("https://fb.com/id6", s)));
+        spList2.add(new SocialProfile("https://vk.com/id6", SocialNetworkType.VK));
+        spList2.add(new SocialProfile("https://fb.com/id-6", SocialNetworkType.FACEBOOK));
         client2.setSocialProfiles(spList2);
         List<SocialProfile> spList3 = new ArrayList<>();
-        socialProfileTypeService.getByTypeName("vk").ifPresent(s -> spList3.add(new SocialProfile("https://vk.com/id7", s)));
-        socialProfileTypeService.getByTypeName("facebook").ifPresent(s -> spList3.add(new SocialProfile("https://fb.com/id-3", s)));
+        spList3.add(new SocialProfile("https://vk.com/id7", SocialNetworkType.VK));
+        spList3.add(new SocialProfile("https://fb.com/id-3", SocialNetworkType.FACEBOOK));
         client3.setSocialProfiles(spList3);
         List<SocialProfile> spList4 = new ArrayList<>();
-        socialProfileTypeService.getByTypeName("vk").ifPresent(s -> spList4.add(new SocialProfile("https://vk.com/id8", s)));
-        socialProfileTypeService.getByTypeName("facebook").ifPresent(s -> spList4.add(new SocialProfile("https://fb.com/id-4", s)));
+        spList4.add(new SocialProfile("https://vk.com/id8", SocialNetworkType.VK));
+        spList4.add(new SocialProfile("https://fb.com/id-4", SocialNetworkType.FACEBOOK));
         client4.setSocialProfiles(spList4);
         client1.setJobs(Arrays.asList(new Job("javaMentor", "developer"), new Job("Microsoft", "Junior developer")));
 
-        vkTrackedClubService.add(new VkTrackedClub(Long.parseLong(vkConfig.getClubId()),
-                vkConfig.getCommunityToken(),
-                "JavaMentorTest",
-                Long.parseLong(vkConfig.getApplicationId())));
-        List<VkTrackedClub> vkTrackedClubs = vkTrackedClubService.getAll();
-        for (VkTrackedClub vkTrackedClub : vkTrackedClubs) {
-            List<VkMember> memberList = vkService.getAllVKMembers(vkTrackedClub.getGroupId(), 0L)
-                    .orElseThrow(NotFoundMemberList::new);
-            vkMemberService.addAllMembers(memberList);
-        }
+//        vkTrackedClubService.add(new VkTrackedClub(Long.parseLong(vkConfig.getClubId()),
+//                vkConfig.getCommunityToken(),
+//                "JavaMentorTest",
+//                Long.parseLong(vkConfig.getApplicationId())));
+//        List<VkTrackedClub> vkTrackedClubs = vkTrackedClubService.getAll();
+//        for (VkTrackedClub vkTrackedClub : vkTrackedClubs) {
+//            List<VkMember> memberList = vkService.getAllVKMembers(vkTrackedClub.getGroupId(), 0L)
+//                    .orElseThrow(() -> new NotFoundMemberList("Лист подписчиков сообщества не был получен"));
+//            vkMemberService.addAllMembers(memberList);
+//        }
 
-
-
-        clientService.addClient(client1);
-        clientService.addClient(client2);
-        clientService.addClient(client3);
-        clientService.addClient(client4);
-        clientService.getClientByEmail("u.dolg@mail.ru").ifPresent(status0::addClient);
-        clientService.getClientByEmail("i.fiod@mail.ru").ifPresent(status1::addClient);
-        clientService.getClientByEmail("vboyko@mail.ru").ifPresent(status2::addClient);
-        clientService.getClientByEmail("a.solo@mail.ru").ifPresent(status3::addClient);
-        statusService.addInit(status_all);
         statusService.addInit(status0);
         statusService.addInit(status1);
         statusService.addInit(status2);
@@ -292,21 +339,28 @@ public class DataInitializer {
         statusService.addInit(status4);
         statusService.addInit(status5);
         statusService.addInit(defaultStatus);
+        client1.setStatus(status0);
+        client2.setStatus(status2);
+        client3.setStatus(status3);
+        client4.setStatus(status1);
+        clientService.addClient(client1, null);
+        clientService.addClient(client2, null);
+        clientService.addClient(client3, null);
+        clientService.addClient(client4, null);
 
         StudentStatus trialStatus = studentStatusService.add(new StudentStatus("Java CORE"));
         StudentStatus learningStatus = studentStatusService.add(new StudentStatus("Java web"));
         StudentStatus pauseStatus = studentStatusService.add(new StudentStatus("Spring MVC"));
 
-        clientService.getClientByEmail("i.fiod@mail.ru").ifPresent(c -> studentService.add(
-                new Student(c, LocalDateTime.now().plusDays(3), LocalDateTime.now().plusDays(3), new BigDecimal(12000.00),
-                        new BigDecimal(8000.00), new BigDecimal(4000.00), trialStatus, "На пробных")));
-        clientService.getClientByEmail("vboyko@mail.ru").ifPresent(c -> studentService.add(
-                new Student(c, LocalDateTime.now(), LocalDateTime.now().plusDays(30), new BigDecimal(12000.00),
-                        new BigDecimal(8000.00), new BigDecimal(4000.00), learningStatus, "Быстро учится")));
-        clientService.getClientByEmail("a.solo@mail.ru").ifPresent(c -> studentService.add(
-                new Student(c, LocalDateTime.now(), LocalDateTime.now().plusDays(14), new BigDecimal(12000.00),
-                        new BigDecimal(12000.00), new BigDecimal(0.00), pauseStatus, "Уехал в отпуск на 2 недели")));
-
+//        clientService.getClientByEmail("i.fiod@mail.ru").ifPresent(c -> studentService.add(
+//                new Student(c, LocalDateTime.now().plusDays(3), LocalDateTime.now().plusDays(3), new BigDecimal(12000.00),
+//                        new BigDecimal(8000.00), new BigDecimal(4000.00), trialStatus, "На пробных")));
+//        clientService.getClientByEmail("vboyko@mail.ru").ifPresent(c -> studentService.add(
+//                new Student(c, LocalDateTime.now(), LocalDateTime.now().plusDays(30), new BigDecimal(12000.00),
+//                        new BigDecimal(8000.00), new BigDecimal(4000.00), learningStatus, "Быстро учится")));
+//        clientService.getClientByEmail("a.solo@mail.ru").ifPresent(c -> studentService.add(
+//                new Student(c, LocalDateTime.now(), LocalDateTime.now().plusDays(14), new BigDecimal(12000.00),
+//                        new BigDecimal(12000.00), new BigDecimal(0.00), pauseStatus, "Уехал в отпуск на 2 недели")));
 
         //TODO удалить после теста
 
@@ -314,7 +368,12 @@ public class DataInitializer {
         List<Client> list = new LinkedList<>();
         for (int i = 0; i < 20; i++) {
             if (statusService.get("trialLearnStatus").isPresent()) {
-                Client client = new Client(faker.name().firstName(), faker.name().lastName(), faker.phoneNumber().phoneNumber(), "teststatususer" + i + "@gmail.com", LocalDate.parse("1990-01-01"), Client.Sex.MALE, statusService.get("trialLearnStatus").get());
+                Client.Builder clientBuilder = new Client.Builder(faker.name().firstName(), faker.phoneNumber().phoneNumber(), "teststatususer" + i + "@gmail.com");
+                Client client = clientBuilder.lastName(faker.name().lastName())
+                        .birthDate(LocalDate.parse("1990-01-01"))
+                        .sex(Client.Sex.MALE)
+                        .build();
+                client.setStatus(statusService.get("trialLearnStatus").get());
                 clientHistoryService.createHistory("инициализация crm").ifPresent(client::addHistory);
                 list.add(client);
             }
@@ -324,7 +383,12 @@ public class DataInitializer {
 
         for (int i = 0; i < 50; i++) {
             if (statusService.get("endLearningStatus").isPresent()) {
-                Client client = new Client(faker.name().firstName(), faker.name().lastName(), faker.phoneNumber().phoneNumber(), "testclient" + i + "@gmail.com", LocalDate.parse("1990-01-01"), Client.Sex.MALE, statusService.get("endLearningStatus").get());
+                Client.Builder clientBuilder = new Client.Builder(faker.name().firstName(), faker.phoneNumber().phoneNumber(), "testclient" + i + "@gmail.com");
+                Client client = clientBuilder.lastName(faker.name().lastName())
+                        .birthDate(LocalDate.parse("1990-01-01"))
+                        .sex(Client.Sex.MALE)
+                        .build();
+                client.setStatus(statusService.get("endLearningStatus").get());
                 clientHistoryService.createHistory("инициализация crm").ifPresent(client::addHistory);
                 list.add(client);
             }
@@ -343,5 +407,88 @@ public class DataInitializer {
         vkRequestFormService.addVkRequestForm(vkRequestForm3);
         vkRequestFormService.addVkRequestForm(vkRequestForm4);
         vkRequestFormService.addVkRequestForm(vkRequestForm5);
+
+
+        Client clientN2 = clientService.get(2L);
+        List<String> emails = new ArrayList<>();
+        emails.add("yabloko@mail.ru");
+        emails.add("apricot@mail.ru");
+        emails.add("gribok@mail.ru");
+        emails.add("zibra@mail.ru");
+        emails.add("cemel@mail.ru");
+        List<String> phones = new ArrayList<>();
+        phones.add("7-123123123");
+        phones.add("7-345345345");
+        phones.add("7-567567567");
+        phones.add("7-789789789");
+        clientN2.setClientEmails(emails);
+        clientN2.setClientPhones(phones);
+        clientService.update(clientN2);
+        clientN2.setEmail("miqolay@gmail.com");
+        clientN2.setPhoneNumber("79080584002");
+        clientService.update(clientN2);
+        Client nulli = new Client.Builder("Nulli", null, null).lastName("Nullov").build();
+        System.out.println(nulli.getEmail().orElse("no Email"));
+        System.out.println(clientN2.getEmail().orElse("not found"));
+
+        initHrData();
     }
+
+    private void initHrData() {
+
+        User user6 = new User("Vasya", "Hr", LocalDate.of(1989, 4, 1), "1999999999", "hr1@gmail.com",
+                "hr1", null, Client.Sex.MALE.toString(), "Dubna", "Russia",
+                Collections.singletonList(roleService.getRoleByName("HR")), true, true);
+        userService.add(user6);
+        Client client2 = clientService.getClientByID(2L).get();
+        client2.setOwnerUser(user6);
+        clientService.updateClient(client2);
+
+        User user7 = new User("Petya", "Hr", LocalDate.of(1998, 7, 9), "2999999999", "hr2@gmail.com",
+                "hr2", null, Client.Sex.MALE.toString(), "Novgorod", "Russia",
+                Collections.singletonList(roleService.getRoleByName("HR")), true, true);
+        userService.add(user7);
+        Client client3 = clientService.getClientByID(3L).get();
+        client3.setOwnerUser(user7);
+        clientService.updateClient(client3);
+
+        User user8 = new User("Dasha", "Hr", LocalDate.of(1984, 3, 12), "3999999999", "hr3@gmail.com",
+                "hr3", null, Client.Sex.FEMALE.toString(), "Samara", "Russia",
+                Collections.singletonList(roleService.getRoleByName("HR")), true, true);
+        userService.add(user8);
+        Client client4 = clientService.getClientByID(4L).get();
+        client4.setOwnerUser(user8);
+        clientService.updateClient(client4);
+
+        CallRecord callRecord11 = new CallRecord();
+        callRecord11.setDate(ZonedDateTime.of(LocalDate.of(2019, 5, 14), LocalTime.MIDNIGHT, ZoneId.systemDefault()));
+        callRecord11.setCallingUser(user6);
+        callRecordService.updateCallRecord(callRecord11);
+        CallRecord callRecord12 = new CallRecord();
+        callRecord12.setDate(ZonedDateTime.of(LocalDate.of(2019, 5, 14), LocalTime.of(10, 50), ZoneId.systemDefault()));
+        callRecord12.setCallingUser(user6);
+        callRecordService.updateCallRecord(callRecord12);
+        CallRecord callRecord13 = new CallRecord();
+        callRecord13.setDate(ZonedDateTime.of(LocalDate.of(2019, 5, 10), LocalTime.MIDNIGHT, ZoneId.systemDefault()));
+        callRecord13.setCallingUser(user6);
+        callRecordService.updateCallRecord(callRecord13);
+        CallRecord callRecord14 = new CallRecord();
+        callRecord14.setDate(ZonedDateTime.of(LocalDate.of(2019, 5, 10), LocalTime.of(11, 10), ZoneId.systemDefault()));
+        callRecord14.setCallingUser(user6);
+        callRecordService.updateCallRecord(callRecord14);
+
+        CallRecord callRecord21 = new CallRecord();
+        callRecord21.setDate(ZonedDateTime.of(LocalDate.of(2019, 5, 14), LocalTime.MIDNIGHT, ZoneId.systemDefault()));
+        callRecord21.setCallingUser(user7);
+        callRecordService.updateCallRecord(callRecord21);
+        CallRecord callRecord22 = new CallRecord();
+        callRecord22.setDate(ZonedDateTime.of(LocalDate.of(2019, 5, 14), LocalTime.of(10, 40), ZoneId.systemDefault()));
+        callRecord22.setCallingUser(user7);
+        callRecordService.updateCallRecord(callRecord22);
+        CallRecord callRecord23 = new CallRecord();
+        callRecord23.setDate(ZonedDateTime.of(LocalDate.of(2019, 5, 12), LocalTime.of(10, 40), ZoneId.systemDefault()));
+        callRecord23.setCallingUser(user7);
+        callRecordService.updateCallRecord(callRecord23);
+    }
+
 }

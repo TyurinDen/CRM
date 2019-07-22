@@ -2,6 +2,9 @@ package com.ewp.crm.controllers.rest.admin;
 
 import com.ewp.crm.configs.ImageConfig;
 import com.ewp.crm.models.User;
+import com.ewp.crm.service.interfaces.ClientService;
+import com.ewp.crm.service.interfaces.CommentService;
+import com.ewp.crm.service.interfaces.SMSInfoService;
 import com.ewp.crm.service.interfaces.UserService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -21,19 +24,26 @@ import java.nio.file.Paths;
 import java.util.Optional;
 
 @RestController
-@PreAuthorize("hasAnyAuthority('OWNER', 'ADMIN')")
+@PreAuthorize("hasAnyAuthority('OWNER', 'ADMIN', 'HR')")
 public class AdminRestUserController {
 
     private static Logger logger = LoggerFactory.getLogger(AdminRestUserController.class);
 
     private final UserService userService;
     private final ImageConfig imageConfig;
+    private final ClientService clientService;
+    private final SMSInfoService smsInfoService;
+    private final CommentService commentService;
 
     @Autowired
     public AdminRestUserController(UserService userService,
-                                   ImageConfig imageConfig) {
+                                   ImageConfig imageConfig,
+                                   ClientService clientService, SMSInfoService smsInfoService, CommentService commentService) {
         this.userService = userService;
         this.imageConfig = imageConfig;
+        this.clientService = clientService;
+        this.smsInfoService = smsInfoService;
+        this.commentService = commentService;
     }
 
     @ResponseBody
@@ -51,7 +61,6 @@ public class AdminRestUserController {
         if (currentPhoto.isPresent() && !userPhoto.isPresent()) {
             user.setPhoto(currentPhoto.get());
         }
-        user.setNotifications(userService.get(user.getId()).getNotifications());
         userService.update(user);
         logger.info("{} has updated user: id {}, email {}", currentAdmin.getFullName(), user.getId(), user.getEmail());
         return ResponseEntity.ok(HttpStatus.OK);
@@ -101,14 +110,22 @@ public class AdminRestUserController {
         return ResponseEntity.ok(HttpStatus.OK);
     }
 
-    @RequestMapping(value = "/admin/rest/user/deleteUser", method = RequestMethod.POST)
-    public ResponseEntity deleteUser(@RequestParam Long deleteId) {
-        User deleteUser = userService.get(deleteId);
+    // Delete user with clients transfer to receiver user
+    @RequestMapping(value = "/admin/rest/user/deleteWithTransfer", method = RequestMethod.POST)
+    public ResponseEntity deleteUserWithClientTransfer(@RequestParam Long deleteId,
+                                                       @RequestParam Long receiverId,
+                                                       @AuthenticationPrincipal User currentAdmin) {
+        User deletedUser = Optional.of(userService.get(deleteId))
+                                    .orElseThrow(() -> new IllegalArgumentException("Wrong delete user id!"));
+        User receiver = Optional.of(userService.get(receiverId))
+                                .orElseThrow(() -> new IllegalArgumentException("Wrong receiver user id!"));
+        clientService.transferClientsBetweenOwners(deletedUser, receiver);
+        commentService.deleteAllCommentsByUserId(deleteId);
+        smsInfoService.deleteAllSMSByUserId(deleteId);
         userService.delete(deleteId);
-        logger.info("{} has deleted user: id {}, email {}", deleteUser.getFullName(), deleteUser.getId(), deleteUser.getEmail());
+        logger.info("{} has deleted user: id {}, email {}", currentAdmin.getFullName(), deletedUser.getId(), deletedUser.getEmail());
         return ResponseEntity.ok(HttpStatus.OK);
     }
-
 
     @PostMapping(value = "/admin/rest/user/delete")
     public ResponseEntity deleteNewUser(@RequestParam Long deleteId,

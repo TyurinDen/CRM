@@ -1,11 +1,12 @@
 package com.ewp.crm.service.impl;
 
 import com.ewp.crm.models.SocialProfile;
+import com.ewp.crm.models.SocialProfile.SocialNetworkType;
 import com.ewp.crm.repository.interfaces.ClientRepository;
-import com.ewp.crm.repository.interfaces.StatusDAO;
-import com.ewp.crm.service.conversation.ChatMessage;
-import com.ewp.crm.service.conversation.ChatType;
-import com.ewp.crm.service.conversation.Interlocutor;
+import com.ewp.crm.repository.interfaces.StatusRepository;
+import com.ewp.crm.models.conversation.ChatMessage;
+import com.ewp.crm.models.conversation.ChatType;
+import com.ewp.crm.models.conversation.Interlocutor;
 import com.ewp.crm.service.conversation.JMConversation;
 import com.ewp.crm.service.interfaces.*;
 import com.google.common.primitives.Longs;
@@ -60,17 +61,15 @@ public class TelegramServiceImpl implements TelegramService, JMConversation {
     private static final ConcurrentMap<Integer, TdApi.File> downloadingFiles = new ConcurrentHashMap<Integer, TdApi.File>();
 
     private final ClientRepository clientRepository;
-    private final StatusDAO statusRepository;
+    private final StatusRepository statusRepository;
     private final ClientHistoryService clientHistoryService;
     private final SendNotificationService sendNotificationService;
-    private final SocialProfileTypeService socialProfileTypeService;
     private final ProjectPropertiesService projectPropertiesService;
     private final SocialProfileService socialProfileService;
 
     @Autowired
-    public TelegramServiceImpl(Environment env, ClientRepository clientRepository, StatusDAO statusRepository,
+    public TelegramServiceImpl(Environment env, ClientRepository clientRepository, StatusRepository statusRepository,
                                ClientHistoryService clientHistoryService, SendNotificationService sendNotificationService,
-                               SocialProfileTypeService socialProfileTypeService,
                                ProjectPropertiesService projectPropertiesService, SocialProfileService socialProfileService) {
         this.env = env;
         this.useMessageDatabase = Boolean.parseBoolean(env.getRequiredProperty("telegram.useMessageDatabase"));
@@ -78,7 +77,6 @@ public class TelegramServiceImpl implements TelegramService, JMConversation {
         this.statusRepository = statusRepository;
         this.clientHistoryService = clientHistoryService;
         this.sendNotificationService = sendNotificationService;
-        this.socialProfileTypeService = socialProfileTypeService;
         this.projectPropertiesService = projectPropertiesService;
         this.socialProfileService = socialProfileService;
         try {
@@ -620,21 +618,15 @@ public class TelegramServiceImpl implements TelegramService, JMConversation {
                 if (user.phoneNumber != null && !user.phoneNumber.isEmpty()) {
                     com.ewp.crm.models.Client clientByPhone = clientRepository.getClientByPhoneNumber(user.phoneNumber);
                     if (clientByPhone != null) {
-                        if (socialProfileTypeService.getByTypeName("telegram").isPresent()) {
-                            clientByPhone.addSocialProfile(new SocialProfile(String.valueOf(user.id), socialProfileTypeService.getByTypeName("telegram").get()));
+                            clientByPhone.addSocialProfile(new SocialProfile(String.valueOf(user.id), SocialNetworkType.TELEGRAM));
                             clientRepository.saveAndFlush(clientByPhone);
-                        }
                         return;
                     }
                 }
-                com.ewp.crm.models.Client newClient = new com.ewp.crm.models.Client();
-                newClient.setName(user.firstName);
-                newClient.setLastName(user.lastName);
-                newClient.setPhoneNumber(user.phoneNumber);
-                if (socialProfileTypeService.getByTypeName("telegram").isPresent()) {
-                    SocialProfile profile = new SocialProfile(String.valueOf(user.id), socialProfileTypeService.getByTypeName("telegram").get());
-                    newClient.setSocialProfiles(Collections.singletonList(profile));
-                }
+                com.ewp.crm.models.Client.Builder newClientBuilder = new com.ewp.crm.models.Client.Builder(user.firstName, user.phoneNumber, null);
+                com.ewp.crm.models.Client newClient = newClientBuilder.lastName(user.lastName).build();
+                SocialProfile profile = new SocialProfile(String.valueOf(user.id), SocialNetworkType.TELEGRAM);
+                newClient.setSocialProfiles(Collections.singletonList(profile));
                 newClient.setStatus(statusRepository.findById(projectPropertiesService.getOrCreate().getNewClientStatus()).get());
                 clientHistoryService.createHistory("Telegram").ifPresent(newClient::addHistory);
                 clientRepository.saveAndFlush(newClient);

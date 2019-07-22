@@ -8,7 +8,76 @@ $(function () {
 $(document).ready(function () {
     selectOptions($("#edit-client-state"));
     selectOptions($("#edit-client-sex"));
+
+    $('#edit-client-country').ready(function () {
+        // получаем список стран из вк-апи
+        var countryNameInput = $('#edit-client-country').val();
+        var url = '/rest/vkontakte/vk-countries';
+        var countries;
+        var countryArray = [];
+        $.ajax({
+            type: 'get',
+            url: url,
+            dataType: 'json',
+            success: function (result) {
+                countries = result;
+                countryArray = $(countries).attr('response');
+                // проверяем, есть ли страна в списке стран, если да - то берем id страны для получения спика городов этой страны
+                $.each(countryArray, function () {
+                    if (countryNameInput == $(this).attr('value')) {
+                        var array = document.getElementById('edit-client-country');
+                        var countId = $(this).attr('cid');
+                        array.setAttribute('cid', countId);
+                        // получаем список городов по id страны и запускаем автодополнение в поле "Город"
+                        doCities(countId);
+                    }
+                });
+
+// автодоплнение из списка всех стран в поле "Страна"
+                $('#edit-client-country').autocomplete({
+                    source: countryArray,
+                    select: function( event , ui ) {
+                        console.debug( 'Selected country: ' + ui.item.label + ' id: ' + + ui.item.cid );
+                        var countId = ui.item.cid;
+                        // как только страна выбрана, получаем список городов по id этой страны и делаем автодополнение этими городами поля "Город"
+                        doCities(countId);
+                    }
+                });
+            },
+            error: function (error) {
+                console.log(error.responseText);
+            }
+        });
+    });
 });
+
+
+function doCities(cid) {
+    $('#edit-client-city').autocomplete({
+        source: function (request, response) {
+            $.ajax({
+                type: 'get',
+                url: "/rest/vkontakte/vk-cities",
+                dataType: "json",
+                data: {
+                    q: request.term,
+                    country: cid
+                },
+                success: function (data) {
+                    response($(data).attr('response'));
+                },
+                error: function (error) {
+                    console.log(error.responseText);
+                }
+            });
+        },
+        minLength: 2,
+        delay: 500,
+        select: function (event, ui) {
+            console.debug('Selected city: ' + ui.item.label + ' id: ' + +ui.item.cid);
+        }
+    });
+}
 
 function changeClient(id) {
     if ($("#saveChanges")[0].className === "btn btn-primary disabled") {
@@ -66,14 +135,59 @@ function changeClient(id) {
     } catch (e) {
         return;
     }
+
+    var Emails = [];
+    $th = $('#AdditionalEmails').find('th');
+    try {
+        $('#AdditionalEmails').find('tbody tr').each(function (i, tr) {
+            var obj = {}, $tds = $(tr).find('td');
+            $th.each(function (index, th) {
+                if ($(th)[0].innerText !== "id" && $tds.eq(index).text() === "") {
+                    var current = document.getElementById("message");
+                    current.textContent = "Заполните пустые поля в таблице 'Email адреса'";
+                    current.style.color = "red";
+                    throw new Error("Пустые поля в таблице 'Email адреса'")
+                }
+                if ($(th).attr('abbr') !== "") {
+                    obj = $tds.eq(index).text();
+                }
+            });
+            Emails.push(obj);
+        });
+    } catch (e) {
+        return;
+    }
+
+
+    var Phones = [];
+    $th = $('#AdditionalPhones').find('th');
+    try {
+        $('#AdditionalPhones').find('tbody tr').each(function (i, tr) {
+            var obj = {}, $tds = $(tr).find('td');
+            $th.each(function (index, th) {
+                if ($(th)[0].innerText !== "id" && $tds.eq(index).text() === "") {
+                    var current = document.getElementById("message");
+                    current.textContent = "Заполните пустые поля в таблице 'Номера телефонов'";
+                    current.style.color = "red";
+                    throw new Error("Пустые поля в таблице 'Номера телефонов'")
+                }
+                if ($(th).attr('abbr') !== "") {
+                    obj = $tds.eq(index).text();
+                }
+            });
+            Phones.push(obj);
+        });
+    } catch (e) {
+        return;
+    }
+
+
     let url = '/admin/rest/client/update';
     let wrap = {
         id: id,
         name: $('#edit-client-first-name').val(),
         lastName: $('#edit-client-last-name').val(),
         middleName: $('#edit-client-middle-name').val(),
-        phoneNumber: $('#edit-client-phone-number').val(),
-        email: $('#edit-client-email').val(),
         birthDate: $('#edit-client-birthday').val(),
         sex: $('#edit-client-sex').find('option:selected').text(),
         state: $('#edit-client-state').val(),
@@ -82,10 +196,13 @@ function changeClient(id) {
         skype: $('#edit-client-skype').val(),
         socialProfiles: SN,
         status: {},
-        jobs: Job
+        jobs: Job,
+        clientEmails: Emails,
+        clientPhones: Phones
     };
     var current = document.getElementById("message");
     let data = JSON.stringify(wrap);
+    console.log('wrap = ' + data);
     $.ajax({
         type: "POST",
         url: url,
@@ -108,6 +225,32 @@ function changeClient(id) {
     });
 }
 
+function deleteClient(clientId) {
+    const url = '/admin/rest/client/remove';
+    const infoMsg = document.getElementById("message");
+    $.ajax({
+        type: "GET",
+        url: url,
+        contentType: "application/json; charset=utf-8",
+        data: {clientId: clientId},
+        beforeSend: function () {
+            infoMsg.style.color = "darkorange";
+            infoMsg.textContent = "Загрузка...";
+
+        },
+        success: function () {
+            infoMsg.textContent = "Удалено";
+            infoMsg.style.color = "limegreen";
+            document.location.href = '/client';
+        },
+        error: function (e) {
+            console.log(e.responseText);
+            infoMsg.textContent = "Ошибка сохранения. " + e.responseText;
+            infoMsg.style.color = "red";
+        }
+    });
+}
+
 function disableInputE() {
     var disMas = [69, 187, 189, 109];
     if (disMas.indexOf(event.keyCode) !== -1) {
@@ -116,7 +259,7 @@ function disableInputE() {
 }
 
 $(document).on('click', 'td', (function (e) {
-    if (e.target.localName !== "td" || e.target.firstElementChild !== null || (e.target.offsetParent.id !== "SocialNetworks" && e.target.offsetParent.id !== "Job") || $('#edit-client-first-name')[0].disabled) {
+    if (e.target.localName !== "td" || e.target.firstElementChild !== null || (e.target.offsetParent.id !== "SocialNetworks" && e.target.offsetParent.id !== "Job" && e.target.offsetParent.id !== "AdditionalEmails" && e.target.offsetParent.id !== "AdditionalPhones") || $('#edit-client-first-name')[0].disabled) {
         return;
     }
     var t = e.target || e.srcElement;
@@ -157,6 +300,15 @@ function deleteJob(element) {
     $(element).parent().parent().remove();
 }
 
+function deleteEmail(element) {
+    $(element).parent().parent().remove();
+}
+
+function deletePhone(element) {
+    $(element).parent().parent().remove();
+}
+
+
 var SNs = "";
 
 function addNewSN() {
@@ -171,6 +323,16 @@ function addNewSN() {
 function addNewJob() {
     var size = ($("#job-table-body")[0]).rows.length;
     $("#job-table-body").append("<tr><td hidden=\"hidden\"></td><td></td><td></td><td><button type=\"button\" onclick=\"deleteJob(this)\" class=\"glyphicon glyphicon-remove\"></button></td></tr>")
+}
+
+function addNewEmailExtra() {
+    var size = ($("#emails-table-body")[0]).rows.length;
+    $("#emails-table-body").append("<tr><td hidden=\"hidden\"></td><td></td><td><button type=\"button\" onclick=\"deleteEmail(this)\" class=\"glyphicon glyphicon-remove\"></button></td></tr>")
+}
+
+function addNewPhoneExtra() {
+    var size = ($("#phones-table-body")[0]).rows.length;
+    $("#phones-table-body").append("<tr><td hidden=\"hidden\"></td><td></td><td><button type=\"button\" onclick=\"deletePhone(this)\" class=\"glyphicon glyphicon-remove\"></button></td></tr>")
 }
 
 function revertUnable() {
@@ -195,6 +357,8 @@ function revertUnable() {
     });
     $("#addNewSN")[0].disabled = $("#addNewSN")[0].disabled !== true;
     $("#addNewJob")[0].disabled = $("#addNewJob")[0].disabled !== true;
+    $("#addNewEmail")[0].disabled = $("#addNewEmail")[0].disabled !== true;
+    $("#addNewPhone")[0].disabled = $("#addNewPhone")[0].disabled !== true;
 }
 
 $(function () {
