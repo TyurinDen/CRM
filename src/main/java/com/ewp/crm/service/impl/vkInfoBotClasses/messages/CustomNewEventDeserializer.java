@@ -31,19 +31,20 @@ public class CustomNewEventDeserializer extends StdDeserializer<NewEvent> {
         newEvent.setGroupId(jsonRootNode.get("group_id").asLong());
 
         JsonNode objectNode = jsonRootNode.get("object");
-        Message message = Message.builder()
-                .date(objectNode.get("date").asLong())
-                .fromId(objectNode.get("from_id").asLong())
-                .id(objectNode.get("id").asInt())
-                .out(objectNode.get("out").asInt())
-                .peerId(objectNode.get("peer_id").asLong())
-                .text(objectNode.get("text").asText())
-                .convMessagesId(objectNode.get("conversation_message_id").asInt())
-                .fwdMessagesList(Collections.singletonList(objectNode.get("fwd_messages").asText()))
-                .important(objectNode.get("important").asBoolean())
-                .randomId(objectNode.get("random_id").asInt())
-                .attachmentsList(Collections.singletonList(objectNode.get("fwd_messages").asText()))
-                .isHidden(objectNode.get("is_hidden").asBoolean()).build();
+        Message message = new Message();
+        message.setDate(objectNode.get("date").asLong());
+        message.setFromId(objectNode.get("from_id").asLong());
+        message.setId(objectNode.get("id").asInt());
+        message.setOut(objectNode.get("out").asInt());
+        message.setPeerId(objectNode.get("peer_id").asLong());
+        message.setText(objectNode.get("text").asText());
+        message.setConvMessagesId(objectNode.get("conversation_message_id").asInt());
+        message.setFwdMessagesList(Collections.singletonList(objectNode.get("fwd_messages").asText()));
+        message.setImportant(objectNode.get("important").asBoolean());
+        message.setRandomId(objectNode.get("random_id").asInt());
+        message.setAttachmentsList(Collections.singletonList(objectNode.get("attachments").asText()));
+        message.setIsHidden(objectNode.get("is_hidden").asBoolean());
+
         newEvent.setMessage(message);
         return newEvent;
     }

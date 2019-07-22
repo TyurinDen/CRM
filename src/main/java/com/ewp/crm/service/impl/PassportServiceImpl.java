@@ -15,8 +15,7 @@ import java.util.Arrays;
 import java.util.Optional;
 
 @Service
-public class PassportServiceImpl extends CommonServiceImpl<Passport> implements PassportService {
-
+public class  PassportServiceImpl extends CommonServiceImpl<Passport> implements PassportService {
     private PassportDAO passportDAO;
     private final byte[] decryptKey;
     private static Logger logger = LoggerFactory.getLogger(PassportServiceImpl.class);

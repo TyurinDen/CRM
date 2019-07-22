@@ -1,7 +1,5 @@
 package com.ewp.crm.service.impl.vkInfoBotClasses.messages;
 
-import lombok.Data;
-
 /**
  * Класс, описывающий новое событие от VK API
  *
@@ -9,7 +7,6 @@ import lombok.Data;
  *
  * @author Tyurin Denis https://vk.com/dentttt
  */
-@Data
 public class NewEvent {
     private String type;
 
@@ -17,4 +14,27 @@ public class NewEvent {
 
     private long groupId;
 
+    public String getType() {
+        return type;
+    }
+
+    public void setType(String type) {
+        this.type = type;
+    }
+
+    public Message getMessage() {
+        return message;
+    }
+
+    public void setMessage(Message message) {
+        this.message = message;
+    }
+
+    public long getGroupId() {
+        return groupId;
+    }
+
+    public void setGroupId(long groupId) {
+        this.groupId = groupId;
+    }
 }

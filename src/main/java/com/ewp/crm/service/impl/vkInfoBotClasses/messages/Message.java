@@ -1,10 +1,5 @@
 package com.ewp.crm.service.impl.vkInfoBotClasses.messages;
 
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
-
 import java.util.List;
 
 /**
@@ -12,10 +7,6 @@ import java.util.List;
  *
  * См. документацию VK API: https://vk.com/dev/objects/message
  */
-@Data
-@Builder
-@NoArgsConstructor
-@AllArgsConstructor
 public class Message {
     private long date;
 
@@ -42,4 +33,99 @@ public class Message {
 
     private boolean isHidden;
 
+    public long getDate() {
+        return date;
+    }
+
+    public void setDate(long date) {
+        this.date = date;
+    }
+
+    public long getFromId() {
+        return fromId;
+    }
+
+    public void setFromId(long fromId) {
+        this.fromId = fromId;
+    }
+
+    public int getId() {
+        return id;
+    }
+
+    public void setId(int id) {
+        this.id = id;
+    }
+
+    public int getOut() {
+        return out;
+    }
+
+    public void setOut(int out) {
+        this.out = out;
+    }
+
+    public long getPeerId() {
+        return peerId;
+    }
+
+    public void setPeerId(long peerId) {
+        this.peerId = peerId;
+    }
+
+    public String getText() {
+        return text;
+    }
+
+    public void setText(String text) {
+        this.text = text;
+    }
+
+    public int getConvMessagesId() {
+        return convMessagesId;
+    }
+
+    public void setConvMessagesId(int convMessagesId) {
+        this.convMessagesId = convMessagesId;
+    }
+
+    public List getFwdMessagesList() {
+        return fwdMessagesList;
+    }
+
+    public void setFwdMessagesList(List fwdMessagesList) {
+        this.fwdMessagesList = fwdMessagesList;
+    }
+
+    public boolean isImportant() {
+        return important;
+    }
+
+    public void setImportant(boolean important) {
+        this.important = important;
+    }
+
+    public int getRandomId() {
+        return randomId;
+    }
+
+    public void setRandomId(int randomId) {
+        this.randomId = randomId;
+    }
+
+    public List getAttachmentsList() {
+        return attachmentsList;
+    }
+
+    public void setAttachmentsList(List attachmentsList) {
+        this.attachmentsList = attachmentsList;
+    }
+
+    public boolean getIsHidden() {
+        return isHidden;
+    }
+
+    public void setIsHidden(boolean hidden) {
+        isHidden = hidden;
+    }
 }

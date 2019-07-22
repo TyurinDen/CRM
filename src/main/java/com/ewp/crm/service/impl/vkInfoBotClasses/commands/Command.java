@@ -1,8 +1,5 @@
 package com.ewp.crm.service.impl.vkInfoBotClasses.commands;
 
-import lombok.Data;
-import lombok.RequiredArgsConstructor;
-
 import java.util.Arrays;
 
 /**
@@ -12,17 +9,22 @@ import java.util.Arrays;
  *
  * @author Tyurin Denis https://vk.com/dentttt
  */
-@Data
-@RequiredArgsConstructor
 public class Command {
     private final String commandNameRegex;
     private final int numberOfArgs;
     private final String[] argsRegex;
     private final String RESULT_LIMIT_REGEX = "^0*[0-9]{1,3}$";
-    private final int MAX_NUMBER_OF_RESULTS = 20;
+    private final int MAX_NUMBER_OF_RESULTS = 30;
     private final String basisSqlQuery;
     private int resultLimit;
     private String sqlQuery;
+
+    public Command(String commandNameRegex, int numberOfArgs, String[] argsRegex, String basisSqlQuery) {
+        this.commandNameRegex = commandNameRegex;
+        this.numberOfArgs = numberOfArgs;
+        this.argsRegex = argsRegex;
+        this.basisSqlQuery = basisSqlQuery;
+    }
 
     public boolean checkSyntax(String messageText) {
         String[] commandComponents = messageText.split(" ");
