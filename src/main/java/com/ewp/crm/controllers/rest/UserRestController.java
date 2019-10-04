@@ -1,5 +1,6 @@
 package com.ewp.crm.controllers.rest;
 
+import com.ewp.crm.models.Role;
 import com.ewp.crm.models.SocialProfile;
 import com.ewp.crm.models.SocialProfile.SocialNetworkType;
 import com.ewp.crm.models.User;
@@ -134,6 +135,14 @@ public class UserRestController {
 		userFromSession.setRowStatusDirection(direction);
 		userService.update(userFromSession);
 		return ResponseEntity.ok(HttpStatus.OK);
+	}
+
+	@GetMapping(value = "/rest/get-users-with-same-role", produces = MediaType.APPLICATION_JSON_VALUE)
+	@PreAuthorize("hasAnyAuthority('OWNER', 'ADMIN', 'USER', 'HR')")
+	public ResponseEntity<List<User>> getByRole(@RequestParam(name = "id") long id) {
+		List<Role> roles = userService.get(id).getRole(); //TODO check this operation with user with id = 6 (null null)
+		roles.removeIf(r -> r.getRoleName().equals("USER"));
+		return ResponseEntity.ok(userService.getUsersByRoles(roles));
 	}
 
 }
