@@ -16,6 +16,7 @@ import java.util.List;
 import java.util.Optional;
 
 public interface ClientService extends CommonService<Client> {
+
     boolean hasClientSocialProfileByType(Client client, String socialProfileType);
 
     boolean inviteToSlack(Client client, String name, String lastName, String email);
@@ -83,7 +84,7 @@ public interface ClientService extends CommonService<Client> {
 	List<Client> getOrderedClientsInStatus(Status status, SortingType order);
 
 	Optional<Client> findByNameAndLastNameIgnoreCase(String name, String lastName);
-  
+
 	void updateClientFromContractForm(Client client, ContractDataForm contractForm, User authUser);
 
 	void setContractLink(Long clientId, String contractLink, String contractName);
@@ -96,11 +97,9 @@ public interface ClientService extends CommonService<Client> {
 
 	Optional<ClientHistory> getLastHistory(Client client);
 
-	void transferClientsBetweenOwners(User sender, User receiver);
-
 	void setOtherInformationLink(Long clientId, String hash);
 
-  List<Client> getSortedClientsByStatus(Status status, SortingType sortingType);
+    List<Client> getSortedClientsByStatus(Status status, SortingType sortingType);
 
 	Optional<List<Client>> getClientsByEmails(List<String> emails);
 
@@ -109,4 +108,9 @@ public interface ClientService extends CommonService<Client> {
 	List<String> getClientsCountries();
 
 	List<String> getClientsCities();
+
+	void transferClientsBetweenOwners(User sender, User receiver);
+
+	void transferClientsBetweenMentors(User sender, User receiver);
+
 }

@@ -23,4 +23,7 @@ public interface CallRecordService extends CommonService<CallRecord> {
     List<CallRecord> findAllByDateBetween(ZonedDateTime from, ZonedDateTime to, Pageable pageable);
 
 	Optional<CallRecord> getByClientHistoryId(Long id);
+
+	void deleteCallRecordsByCallingUserId(Long deletedUserId);
+
 }

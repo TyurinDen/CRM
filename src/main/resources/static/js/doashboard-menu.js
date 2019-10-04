@@ -1,19 +1,23 @@
-// Fill table with radiobuttons and show modal window
+// Заполняет форму пользователями с теми же ролями, что и у удаляемого пользователя.
 function fillUsersTableForDelete(button) {
-    deleted = $(button).data('id');
-    var url = '/rest/users';
+    const deletedUserId = $(button).data('id');
+    const url = '/rest/get-users-with-same-role';
     $.ajax({
-        type: 'get',
         url: url,
+        data: {
+            id: deletedUserId
+        },
         dataType: 'json',
         success: function (response) {
-            console.log(response);
-            var trHTML = '';
-            for (var i = 0; i < response.length; i++) {
-                if (deleted == response[i].id) continue;
-                trHTML += '<tr><td>' + '<input type="radio" name="user" value="' + response[i].id + '">' +
-                    " " + response[i].firstName +
-                    " " + response[i].lastName + '</td></tr>';
+            let trHTML = '';
+            for (let i = 0; i < response.length; i++) {
+                if (deletedUserId === response[i].id) continue;
+                if (trHTML === '') {
+                    trHTML += '<tr><td>' + '<input type="radio" name="user" value="' + response[i].id + '" checked>';
+                } else {
+                    trHTML += '<tr><td>' + '<input type="radio" name="user" value="' + response[i].id + '">';
+                }
+                trHTML += ' ' + response[i].firstName +  ' ' + response[i].lastName + '</td></tr>';
             }
             $('#usersTable tbody').append(trHTML);
             $('#deleteUserModal').modal('show');
@@ -23,16 +27,15 @@ function fillUsersTableForDelete(button) {
         }
     });
 
-    // Delete user form listener
+    // Обработчик формы переназначения студентов другому пользователю
     $("#deleteUserForm").submit(function (event) {
         event.preventDefault();
-        receiver = $("input[name='user']:checked").val();
-        var url = '/rest/admin/user/deleteWithTransfer';
-        var formData = {
-            deleteId: deleted,
-            receiverId: receiver
+        const receiverUserId = $("input[name='user']:checked").val();
+        const url = '/admin/rest/user/deleteWithTransfer';
+        const formData = {
+            deletedUserId: deletedUserId,
+            receiverUserId: receiverUserId
         };
-
         $.ajax({
             type: "POST",
             url: url,

@@ -36,6 +36,7 @@ public class AdminRestUserController {
     private final CommentService commentService;
     private final UserStatusService userStatusService;
     private final StatusService statusService;
+    private final CallRecordService callRecordService;
 
     @Autowired
     public AdminRestUserController(UserService userService,
@@ -44,7 +45,8 @@ public class AdminRestUserController {
                                    SMSInfoService smsInfoService,
                                    CommentService commentService,
                                    UserStatusService userStatusService,
-                                   StatusService statusService) {
+                                   StatusService statusService,
+                                   CallRecordService callRecordService) {
         this.userService = userService;
         this.imageConfig = imageConfig;
         this.clientService = clientService;
@@ -52,6 +54,7 @@ public class AdminRestUserController {
         this.commentService = commentService;
         this.userStatusService = userStatusService;
         this.statusService = statusService;
+        this.callRecordService = callRecordService;
     }
 
     @ResponseBody
@@ -130,20 +133,34 @@ public class AdminRestUserController {
         return ResponseEntity.ok(HttpStatus.OK);
     }
 
-    // Delete user with clients transfer to receiver user
-    @RequestMapping(value = "/deleteWithTransfer", method = RequestMethod.POST)
-    public ResponseEntity deleteUserWithClientTransfer(@RequestParam Long deleteId,
-                                                       @RequestParam Long receiverId,
-                                                       @AuthenticationPrincipal User currentAdmin) {
-        User deletedUser = Optional.of(userService.get(deleteId))
-                                    .orElseThrow(() -> new IllegalArgumentException("Wrong delete user id!"));
-        User receiver = Optional.of(userService.get(receiverId))
-                                .orElseThrow(() -> new IllegalArgumentException("Wrong receiver user id!"));
-        clientService.transferClientsBetweenOwners(deletedUser, receiver);
-        commentService.deleteAllCommentsByUserId(deleteId);
-        smsInfoService.deleteAllSMSByUserId(deleteId);
-        userService.delete(deleteId);
-        logger.info("{} has deleted user: id {}, email {}", currentAdmin.getFullName(), deletedUser.getId(), deletedUser.getEmail());
+    // Удаление пользователя с переназначением его студентов другому пользователю
+    @RequestMapping(value = "/admin/rest/user/deleteWithTransfer", method = RequestMethod.POST)
+    public ResponseEntity deleteUserWithClientTransfer(@RequestParam Long deletedUserId,
+                                                       @RequestParam Long receiverUserId,
+                                                       @AuthenticationPrincipal User currentUser) {
+        User deletedUser = Optional.of(userService.get(deletedUserId))
+                .orElseThrow(() -> new IllegalArgumentException(String.format("Deleted user " +
+                        "with ID = %d not found!", deletedUserId)));
+        User receiverUser = Optional.of(userService.get(receiverUserId))
+                .orElseThrow(() -> new IllegalArgumentException(String.format("Destination user " +
+                        "with ID = %d not found!", receiverUserId)));
+        for (Role role : deletedUser.getRole()) {
+            if (role.getRoleName().equals("MENTOR")) {
+                clientService.transferClientsBetweenMentors(deletedUser, receiverUser);
+                continue;
+            }
+            //сделано так тк USER может отдновременно быть и MENTOR и OWNER, чего в общем быть не должно, но встречается
+            if (role.getRoleName().equals("OWNER")) {
+                clientService.transferClientsBetweenOwners(deletedUser, receiverUser);
+            }
+        }
+        commentService.deleteAllCommentsByUserId(deletedUserId);
+//        commentAnswerService.deleteCommentAnswerByUserId(deletedUserId);
+        //TODO написать скрипт чистки таблицы worker_send_sms от неконсистентных данных
+        smsInfoService.deleteAllSMSByUserId(deletedUserId);
+        callRecordService.deleteCallRecordsByCallingUserId(deletedUserId);
+        userService.delete(deletedUserId);
+        logger.info("{} has deleted user: id {}, email {}", currentUser.getFullName(), deletedUser.getId(), deletedUser.getEmail());
         return ResponseEntity.ok(HttpStatus.OK);
     }
 

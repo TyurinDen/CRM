@@ -34,7 +34,6 @@ public class ClientServiceImpl extends CommonServiceImpl<Client> implements Clie
     private NotificationRepository notificationRepository;
     private final SocialProfileService socialProfileService;
     private final ClientHistoryService clientHistoryService;
-    private final RoleService roleService;
     private final VKService vkService;
     private final PhoneValidator phoneValidator;
     private final PassportService passportService;
@@ -48,15 +47,15 @@ public class ClientServiceImpl extends CommonServiceImpl<Client> implements Clie
 	@Autowired
 	public ClientServiceImpl(ClientRepository clientRepository, SocialProfileService socialProfileService,
 							 ClientHistoryService clientHistoryService, PhoneValidator phoneValidator,
-							 RoleService roleService, @Lazy VKService vkService, PassportService passportService,
+							 @Lazy VKService vkService, PassportService passportService,
 							 ProjectPropertiesService projectPropertiesService, SlackInviteLinkRepository slackInviteLinkRepository,
 							 NotificationRepository notificationRepository, @Lazy SlackService slackService, Environment env,
-							 ClientStatusChangingHistoryService clientStatusChangingHistoryService, UserService userService, StudentRepository studentRepository) {
+							 ClientStatusChangingHistoryService clientStatusChangingHistoryService, UserService userService,
+							 StudentRepository studentRepository) {
 		this.clientRepository = clientRepository;
 		this.socialProfileService = socialProfileService;
 		this.clientHistoryService = clientHistoryService;
 		this.vkService = vkService;
-		this.roleService = roleService;
 		this.phoneValidator = phoneValidator;
 		this.passportService = passportService;
 		this.slackInviteLinkRepository = slackInviteLinkRepository;
@@ -751,13 +750,6 @@ public class ClientServiceImpl extends CommonServiceImpl<Client> implements Clie
 	}
 
 	@Override
-	public void transferClientsBetweenOwners(User sender, User receiver) {
-		clientRepository.transferClientsBetweenOwners(sender, receiver);
-		logger.info("Clients has transferred from {} to {}", sender.getFullName(), receiver.getFullName());
-	}
-
-
-	@Override
 	public void setOtherInformationLink(Long clientId, String hash) {
 		Client client = clientRepository.getOne(clientId);
 		OtherInformationLinkData newOtherInformationLinkData = new OtherInformationLinkData();
@@ -807,5 +799,17 @@ public class ClientServiceImpl extends CommonServiceImpl<Client> implements Clie
 	public List<String> getClientsCountries() {
 		return clientRepository.getClientsCountries();
 	}
-}
 
+	@Override
+	public void transferClientsBetweenOwners(User sender, User receiver) {
+		clientRepository.transferClientsBetweenOwners(sender, receiver);
+		logger.info("Clients has transferred from owner {} to owner {}", sender.getFullName(), receiver.getFullName());
+	}
+
+	@Override
+	public void transferClientsBetweenMentors(User sender, User receiver) {
+		clientRepository.transferClientsBetweenMentors(sender, receiver);
+		logger.info("Clients has transferred from mentor {} to mentor {}", sender.getFullName(), receiver.getFullName());
+	}
+
+}

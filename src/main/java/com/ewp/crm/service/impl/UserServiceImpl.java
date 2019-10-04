@@ -4,7 +4,6 @@ import com.ewp.crm.configs.ImageConfig;
 import com.ewp.crm.exceptions.user.UserExistsException;
 import com.ewp.crm.exceptions.user.UserPhotoException;
 import com.ewp.crm.models.Role;
-import com.ewp.crm.models.Status;
 import com.ewp.crm.models.User;
 import com.ewp.crm.models.UserRoutes;
 import com.ewp.crm.models.dto.MentorDtoForMentorsPage;
@@ -32,9 +31,7 @@ import java.awt.image.BufferedImage;
 import java.io.BufferedInputStream;
 import java.io.File;
 import java.time.Instant;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Optional;
+import java.util.*;
 
 @Service
 public class UserServiceImpl extends CommonServiceImpl<User> implements UserService {
@@ -227,7 +224,6 @@ public class UserServiceImpl extends CommonServiceImpl<User> implements UserServ
         return Optional.ofNullable(userToOwnClient);
     }
 
-
     @Override
     public List<MentorDtoForMentorsPage> getAllMentors() {
         return userDAO.getAllMentors();
@@ -241,4 +237,14 @@ public class UserServiceImpl extends CommonServiceImpl<User> implements UserServ
     public Optional<List<UserDtoForBoard>> getAllWithoutMentorsForDto() {
         return Optional.ofNullable(userDAO.getAllWithoutMentorsForDto());
     }
+
+    @Override
+    public List<User> getUsersByRoles(List<Role> roles) {
+        Set<User> users = new HashSet<>();
+        for (Role role : roles) {
+            users.addAll(userDAO.getUserByRole(role)); //TODO что-то как-то странно сделано...
+        }
+        return new ArrayList<>(users);
+    }
+
 }
