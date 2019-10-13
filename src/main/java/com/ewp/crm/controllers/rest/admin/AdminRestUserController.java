@@ -37,6 +37,7 @@ public class AdminRestUserController {
     private final UserStatusService userStatusService;
     private final StatusService statusService;
     private final CallRecordService callRecordService;
+    private final NotificationService notificationService;
 
     @Autowired
     public AdminRestUserController(UserService userService,
@@ -46,7 +47,8 @@ public class AdminRestUserController {
                                    CommentService commentService,
                                    UserStatusService userStatusService,
                                    StatusService statusService,
-                                   CallRecordService callRecordService) {
+                                   CallRecordService callRecordService,
+                                   NotificationService notificationService) {
         this.userService = userService;
         this.imageConfig = imageConfig;
         this.clientService = clientService;
@@ -55,6 +57,7 @@ public class AdminRestUserController {
         this.userStatusService = userStatusService;
         this.statusService = statusService;
         this.callRecordService = callRecordService;
+        this.notificationService = notificationService;
     }
 
     @ResponseBody
@@ -134,7 +137,7 @@ public class AdminRestUserController {
     }
 
     // Удаление пользователя с переназначением его студентов другому пользователю
-    @RequestMapping(value = "/admin/rest/user/deleteWithTransfer", method = RequestMethod.POST)
+    @RequestMapping(value = "/deleteWithTransfer", method = RequestMethod.POST)
     public ResponseEntity deleteUserWithClientTransfer(@RequestParam Long deletedUserId,
                                                        @RequestParam Long receiverUserId,
                                                        @AuthenticationPrincipal User currentUser) {
@@ -154,8 +157,9 @@ public class AdminRestUserController {
                 clientService.transferClientsBetweenOwners(deletedUser, receiverUser);
             }
         }
+
         commentService.deleteAllCommentsByUserId(deletedUserId);
-//        commentAnswerService.deleteCommentAnswerByUserId(deletedUserId);
+        notificationService.deleteNotificationByUser(deletedUser);
         //TODO написать скрипт чистки таблицы worker_send_sms от неконсистентных данных
         smsInfoService.deleteAllSMSByUserId(deletedUserId);
         callRecordService.deleteCallRecordsByCallingUserId(deletedUserId);
@@ -172,4 +176,5 @@ public class AdminRestUserController {
         logger.info("{} has deleted user: id {}, email {}", currentAdmin.getFullName(), currentUser.getId(), currentUser.getEmail());
         return ResponseEntity.ok(HttpStatus.OK);
     }
+
 }

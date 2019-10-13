@@ -9,6 +9,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.env.Environment;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
@@ -75,4 +76,11 @@ public class CallRecordServiceImpl extends CommonServiceImpl<CallRecord> impleme
     public Optional<CallRecord> getByClientHistoryId(Long id) {
         return Optional.ofNullable(callRecordRepository.getByClientHistoryId(id));
     }
+
+    @Override
+    @Transactional
+    public void deleteCallRecordsByCallingUserId(Long deletedUserId) {
+        callRecordRepository.deleteCallRecordsByCallingUserId(deletedUserId);
+    }
+
 }

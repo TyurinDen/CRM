@@ -2,6 +2,27 @@
 <databaseChangeLog xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
                    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
                    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.1.xsd">
+    <changeSet author="Tyurin Denis" id="928">
+        <comment>
+
+        </comment>
+        <sql>
+            UPDATE client SET owner_mentor_id = 9 WHERE owner_mentor_id = 6;
+
+            UPDATE crm.worker_send_sms SET worker_id = 9 WHERE worker_id = 6;
+
+            UPDATE user_notification SET user_id = 9 WHERE user_id = 6;
+
+            UPDATE comment SET user_id = 9 WHERE user_id = 6;
+
+            UPDATE call_client_info SET calling_user_id = 9 WHERE calling_user_id = 6;
+
+            DELETE FROM user WHERE user_id = 6;
+        </sql>
+        <rollback>
+        </rollback>
+    </changeSet>
+
     <changeSet author="Tyurin Denis" id="885">
         <comment>
             Реорганизация БД для сокращения количества таблиц и удаления избыточных связей при работе с комментариями

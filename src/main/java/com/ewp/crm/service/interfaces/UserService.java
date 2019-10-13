@@ -5,6 +5,7 @@ import com.ewp.crm.models.User;
 import com.ewp.crm.models.UserRoutes;
 import com.ewp.crm.models.dto.MentorDtoForMentorsPage;
 import com.ewp.crm.models.dto.UserDtoForBoard;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
@@ -24,6 +25,7 @@ public interface UserService extends CommonService<User> {
 	void delete(User user);
 
 	@Override
+	@Transactional
 	void delete(Long user_id);
 
 	void addPhoto(MultipartFile file, User user);

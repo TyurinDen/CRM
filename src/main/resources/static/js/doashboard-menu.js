@@ -1,7 +1,7 @@
 // Заполняет форму пользователями с теми же ролями, что и у удаляемого пользователя.
 function fillUsersTableForDelete(button) {
     const deletedUserId = $(button).data('id');
-    const url = '/rest/get-users-with-same-role';
+    const url = '/rest/user/get-users-with-same-role';
     $.ajax({
         url: url,
         data: {
@@ -31,7 +31,7 @@ function fillUsersTableForDelete(button) {
     $("#deleteUserForm").submit(function (event) {
         event.preventDefault();
         const receiverUserId = $("input[name='user']:checked").val();
-        const url = '/admin/rest/user/deleteWithTransfer';
+        const url = '/rest/admin/user/deleteWithTransfer';
         const formData = {
             deletedUserId: deletedUserId,
             receiverUserId: receiverUserId

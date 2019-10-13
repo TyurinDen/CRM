@@ -7,6 +7,7 @@ import com.ewp.crm.models.User;
 import java.util.List;
 
 public interface NotificationService extends CommonService<Notification> {
+
     void deleteByTypeAndClientAndUserToNotify(Notification.Type type, Client client, User user);
 
 	void deleteNotificationsByClient(Client client);
@@ -18,4 +19,7 @@ public interface NotificationService extends CommonService<Notification> {
     List<Notification> getByUserToNotifyAndTypeAndClient(User user, Notification.Type type, Client client);
 
     List<Client> getClientWithNotification();
+
+    void deleteNotificationByUser(User user);
+
 }

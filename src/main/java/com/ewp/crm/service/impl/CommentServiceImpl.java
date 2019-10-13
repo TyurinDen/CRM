@@ -7,6 +7,7 @@ import com.ewp.crm.repository.interfaces.CommentDAO;
 import com.ewp.crm.service.interfaces.CommentService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
@@ -31,6 +32,7 @@ public class CommentServiceImpl extends CommonServiceImpl<Comment> implements Co
     }
 
     @Override
+    @Transactional
     public void deleteAllCommentsByUserId(Long id) {
         commentDAO.deleteAllCommentsByUserId(id);
     }

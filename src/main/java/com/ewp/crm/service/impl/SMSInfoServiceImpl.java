@@ -4,6 +4,7 @@ import com.ewp.crm.models.SMSInfo;
 import com.ewp.crm.repository.interfaces.SMSInfoRepository;
 import com.ewp.crm.service.interfaces.SMSInfoService;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.Optional;
@@ -22,6 +23,7 @@ public class SMSInfoServiceImpl extends CommonServiceImpl<SMSInfo> implements SM
 	}
 
 	@Override
+	@Transactional
 	public void deleteAllSMSByUserId(Long id) {
 		smsInfoRepository.deleteAllByUserId(id);
 	}

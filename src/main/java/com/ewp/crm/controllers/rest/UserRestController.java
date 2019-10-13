@@ -137,7 +137,7 @@ public class UserRestController {
 		return ResponseEntity.ok(HttpStatus.OK);
 	}
 
-	@GetMapping(value = "/rest/get-users-with-same-role", produces = MediaType.APPLICATION_JSON_VALUE)
+	@GetMapping(value = "/rest/user/get-users-with-same-role", produces = MediaType.APPLICATION_JSON_VALUE)
 	@PreAuthorize("hasAnyAuthority('OWNER', 'ADMIN', 'USER', 'HR')")
 	public ResponseEntity<List<User>> getByRole(@RequestParam(name = "id") long id) {
 		List<Role> roles = userService.get(id).getRole(); //TODO check this operation with user with id = 6 (null null)
