@@ -6,7 +6,7 @@ $('.checkbox').click(function() {
     rows = table.rows;
     if (this.id === 'filter-has-no-email' || this.id === 'filter-has-no-phone' ||
         this.id === 'filter-has-no-vk' || this.id === 'filter-has-no-slack' || filters.length > 0) {
-        //Перересовываем таблицу с фильтрацией по статусам
+        //Перерисовываем таблицу с фильтрацией по статусам
         renderStudentsTable();
         //Для каждой строки
         for (i = 0; i < rows.length; i++) {
@@ -153,13 +153,13 @@ function calc_info_values() {
 /*Data sorting with notifications*/
 function noteAndSort(button, n, type) {
     /* Create notifications and start table sorting*/
-    var notification = $('#sortingNotification');
+    const notification = $('#sortingNotification');
     $('#sortingNotification h5').html('Подождите, идет сортировка...');
     notification.show();
-    var endOfSort = $('#sortingEnded');
-    var sorting = async function() {
+    const endOfSort = $('#sortingEnded');
+    const sorting = async function () {
         sort_table(button, n, type);
-    }
+    };
     /* Without timeout notification can't be showed*/
     setTimeout(() => { sorting().then(function() {
         notification.hide();
