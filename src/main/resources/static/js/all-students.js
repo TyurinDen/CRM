@@ -1,8 +1,8 @@
 //Функция фильтрации студентов на странице /student/all по email, phone, slack, vk и направлениям
 $('.checkbox').click(function() {
-    var table, rows, i, status, json;
+    let table, rows, i, status, json;
     table = document.getElementById("students-table");
-    var filters = document.getElementById("courses_filter").getElementsByClassName("checkbox"); //Фильтры по направлениям
+    let filters = document.getElementById("courses_filter").getElementsByClassName("checkbox"); //Фильтры по направлениям
     rows = table.rows;
     if (this.id === 'filter-has-no-email' || this.id === 'filter-has-no-phone' ||
         this.id === 'filter-has-no-vk' || this.id === 'filter-has-no-slack' || filters.length > 0) {
@@ -35,7 +35,7 @@ $('.checkbox').click(function() {
                 //вызываются фильтры по направлениям.
                 for (var j = 0; j < filters.length; j++) {
                     //Если фильтр активирован
-                    if (filters[j].checked == true) {
+                    if (filters[j].checked === true) {
                         //Ищем в строке название направления. И если не находим
                         if (rows[i].innerHTML.indexOf(filters[j].id) === -1) {
                             if(i>0) {
@@ -107,7 +107,7 @@ function reInitCheckboxes() {
 }
 
 function renderStudentsTable() {
-    var table, rows, i, status;
+    let table, rows, i, status;
     table = document.getElementById("students-table");
     rows = table.rows;
     for (i = 1; i < rows.length; i++) {
