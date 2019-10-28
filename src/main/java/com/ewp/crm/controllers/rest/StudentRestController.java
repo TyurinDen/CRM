@@ -1,6 +1,7 @@
 package com.ewp.crm.controllers.rest;
 
 import com.ewp.crm.models.*;
+import com.ewp.crm.models.dto.all_students_page.StudentDto;
 import com.ewp.crm.service.interfaces.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -20,12 +21,6 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.HandlerMapping;
 
 import javax.servlet.http.HttpServletRequest;
-import java.time.LocalDate;
-import java.time.LocalTime;
-import java.time.ZoneId;
-import java.time.ZonedDateTime;
-import java.time.format.DateTimeFormatter;
-import java.time.temporal.ChronoUnit;
 import java.util.*;
 import java.util.function.Supplier;
 
@@ -174,7 +169,7 @@ public class StudentRestController {
     }
 
     @GetMapping("/{id}/client")
-    public ResponseEntity<Client> getClientByStudentId(@PathVariable("id") Long id) {
+    public ResponseEntity getClientByStudentId(@PathVariable("id") Long id) {
         ResponseEntity result;
         Client client = studentService.get(id).getClient();
         if (client != null) {
@@ -294,4 +289,11 @@ public class StudentRestController {
         }
         return null;
     }
+
+    @PostMapping("/get-by-status-name")
+    public ResponseEntity<List<StudentDto>> getStudentsByClientStatusNames(@RequestParam String statuses) {
+        //TODO проверить  поведение в случае получения пустого списка
+        return ResponseEntity.ok(studentService.getStudentsByClientStatusNames(statuses));
+    }
+
 }

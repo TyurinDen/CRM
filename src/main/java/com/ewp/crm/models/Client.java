@@ -137,7 +137,7 @@ public class Client implements Serializable, Diffable<Client> {
      * We use FetchType.LAZY for lazy initialization.
      */
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "status_id")
+//    @JoinColumn(name = "status_id")
     @JoinTable(name = "status_clients",
             joinColumns = {@JoinColumn(name = "user_id", foreignKey = @ForeignKey(name = "FK_USER"))},
             inverseJoinColumns = {@JoinColumn(name = "status_id", foreignKey = @ForeignKey(name = "FK_STATUS"))})

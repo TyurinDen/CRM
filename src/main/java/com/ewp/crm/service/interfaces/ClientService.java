@@ -22,95 +22,95 @@ public interface ClientService extends CommonService<Client> {
 
     Optional<Client> getClientBySlackInviteHash(String hash);
 
-	Optional<String> generateSlackInviteLink(Long clientId);
+    Optional<String> generateSlackInviteLink(Long clientId);
 
-	List<String> getSocialIdsForStudentsByStatusAndSocialProfileType(List<Status> statuses, String socialProfileType);
+    List<String> getSocialIdsForStudentsByStatusAndSocialProfileType(List<Status> statuses, String socialProfileType);
 
-	List<String> getSocialIdsForStudentsBySocialProfileType(String socialProfileType);
+    List<String> getSocialIdsForStudentsBySocialProfileType(String socialProfileType);
 
-	List<Client> getAllClientsByStatus(Status status);
+    List<Client> getAllClientsByStatus(Status status);
 
-	List<Client> getAllClients();
+    List<Client> getAllClients();
 
-	Optional<Client> getClientBySkype(String skypeLogin);
+    Optional<Client> getClientBySkype(String skypeLogin);
 
-	List<Client> getClientsByOwnerUser(User ownerUser);
+    List<Client> getClientsByOwnerUser(User ownerUser);
 
-	Optional<Client> getClientByEmail(String name);
+    Optional<Client> getClientByEmail(String name);
 
-	Optional<Client> getClientByPhoneNumber(String phoneNumber);
+    Optional<Client> getClientByPhoneNumber(String phoneNumber);
 
-	Optional<Client> getClientByID(Long id);
+    Optional<Client> getClientByID(Long id);
 
-	Optional<Client> getClientBySocialProfile(SocialProfile socialProfile);
+    Optional<Client> getClientBySocialProfile(SocialProfile socialProfile);
 
-	void addClient(Client client, User user);
+    void addClient(Client client, User user);
 
-	void createClientStatusChangingHistory(Status lastStatus, Status newStatus, Client client, boolean clientCreation, User user);
+    void createClientStatusChangingHistory(Status lastStatus, Status newStatus, Client client, boolean clientCreation, User user);
 
-	void updateClient(Client client);
+    void updateClient(Client client);
 
-	List<Client> filteringClient(FilteringCondition filteringCondition);
+    List<Client> filteringClient(FilteringCondition filteringCondition);
 
-	List<Client> getChangeActiveClients();
+    List<Client> getChangeActiveClients();
 
-	List<Client> getClientsByManyIds(List<Long> ids);
+    List<Client> getClientsByManyIds(List<Long> ids);
 
-	void updateBatchClients(List<Client> clients);
+    void updateBatchClients(List<Client> clients);
 
-	void addBatchClients(List<Client> clients);
+    void addBatchClients(List<Client> clients);
 
-	List<String> getClientsEmails();
+    List<String> getClientsEmails();
 
-	List<String> getClientsPhoneNumbers();
+    List<String> getClientsPhoneNumbers();
 
-	List<String> getFilteredClientsEmail(FilteringCondition filteringCondition);
+    List<String> getFilteredClientsEmail(FilteringCondition filteringCondition);
 
-	Optional<List<String>> getClientsEmailsByStatusesIds(List<Long> statusesIds);
+    Optional<List<String>> getClientsEmailsByStatusesIds(List<Long> statusesIds);
 
-	List<String> getFilteredClientsPhoneNumber(FilteringCondition filteringCondition);
+    List<String> getFilteredClientsPhoneNumber(FilteringCondition filteringCondition);
 
-	Optional<List<String>> getClientsPhoneNumbersByStatusesIds(List<Long> statusesIds);
+    Optional<List<String>> getClientsPhoneNumbersByStatusesIds(List<Long> statusesIds);
 
-	List<String> getFilteredClientsSNLinks(FilteringCondition filteringCondition);
+    List<String> getFilteredClientsSNLinks(FilteringCondition filteringCondition);
 
-	void setClientDateOfRegistrationByHistoryDate(Client client);
+    void setClientDateOfRegistrationByHistoryDate(Client client);
 
-	List<Client> getAllClientsByPage(Pageable pageable);
+    List<Client> getAllClientsByPage(Pageable pageable);
 
-	List<Client> getClientsBySearchPhrase(String search);
+    List<Client> getClientsBySearchPhrase(String search);
 
-	List<Client> getOrderedClientsInStatus(Status status, SortingType order);
+    List<Client> getOrderedClientsInStatus(Status status, SortingType order);
 
-	Optional<Client> findByNameAndLastNameIgnoreCase(String name, String lastName);
-  
-	void updateClientFromContractForm(Client client, ContractDataForm contractForm, User authUser);
+    Optional<Client> findByNameAndLastNameIgnoreCase(String name, String lastName);
 
-	void setContractLink(Long clientId, String contractLink, String contractName);
+    void updateClientFromContractForm(Client client, ContractDataForm contractForm, User authUser);
 
-	List<Client> getAllClientsSortingByLastChange();
+    void setContractLink(Long clientId, String contractLink, String contractName);
 
-	List<Client> getFilteringAndSortClients(FilteringCondition filteringCondition, String sortColumn);
+    List<Client> getAllClientsSortingByLastChange();
 
-	Optional<Comment> getLastComment(Client client);
+    List<Client> getFilteringAndSortClients(FilteringCondition filteringCondition, String sortColumn);
 
-	Optional<ClientHistory> getLastHistory(Client client);
+    Optional<Comment> getLastComment(Client client);
 
-	void transferClientsBetweenOwners(User sender, User receiver);
+    Optional<ClientHistory> getLastHistory(Client client);
 
-	void transferContractSettingsBetweenUsers(User sender, User receiver);
+    void transferClientsBetweenOwners(User sender, User receiver);
 
-	void transferClientsBetweenMentors(User sender, User receiver);
+    void transferContractSettingsBetweenUsers(User sender, User receiver);
 
-	void setOtherInformationLink(Long clientId, String hash);
+    void transferClientsBetweenMentors(User sender, User receiver);
 
-  List<Client> getSortedClientsByStatus(Status status, SortingType sortingType);
+    void setOtherInformationLink(Long clientId, String hash);
 
-	Optional<List<Client>> getClientsByEmails(List<String> emails);
+    List<Client> getSortedClientsByStatus(Status status, SortingType sortingType);
+
+    Optional<List<Client>> getClientsByEmails(List<String> emails);
 
     List<ClientDto.ClientTransformer> getClientsDtoByEmails(List<String> emails);
 
-	List<String> getClientsCountries();
+    List<String> getClientsCountries();
 
-	List<String> getClientsCities();
+    List<String> getClientsCities();
 }

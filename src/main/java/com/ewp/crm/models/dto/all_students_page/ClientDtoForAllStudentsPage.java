@@ -13,13 +13,13 @@ import java.util.stream.Collectors;
 /**
  * Этот класс нужен для страницы "Все страницы", чтобы собрать необходимую информацию о клиенте.
  * Поля клиента, которые используются в all-students-table.html:
- *  a) status
- *  b) name
- *  c) lastName
- *  d) email
- *  e) phoneNumber
- *  f) socialProfiles
- *  g) id
+ * a) status
+ * b) name
+ * c) lastName
+ * d) email
+ * e) phoneNumber
+ * f) socialProfiles
+ * g) id
  */
 public class ClientDtoForAllStudentsPage {
 
@@ -27,22 +27,23 @@ public class ClientDtoForAllStudentsPage {
     private String name;
     private String lastName;
     private String phoneNumber;
-    private StatusDto statusDto;
+    private StatusDto status;
     private String email;
-    private List<SocialNetworkDto> socialNetworkDtos = new ArrayList<>();
+    private List<SocialNetworkDto> socialProfiles = new ArrayList<>();
 
 
     public ClientDtoForAllStudentsPage() {
     }
 
-    public ClientDtoForAllStudentsPage(long id, String name, String lastName, String phoneNumber, StatusDto statusDto, String email, List<SocialNetworkDto> socialNetworkDtos) {
+    public ClientDtoForAllStudentsPage(long id, String name, String lastName, String phoneNumber, StatusDto statusDto,
+                                       String email, List<SocialNetworkDto> socialNetworkDtos) {
         this.id = id;
         this.name = name;
         this.lastName = lastName;
         this.phoneNumber = phoneNumber;
-        this.statusDto = statusDto;
+        this.status = statusDto;
         this.email = email;
-        this.socialNetworkDtos = socialNetworkDtos;
+        this.socialProfiles = socialNetworkDtos;
     }
 
     public long getId() {
@@ -77,32 +78,33 @@ public class ClientDtoForAllStudentsPage {
         this.phoneNumber = phoneNumber;
     }
 
-    public String getEmail() {
-        return email;
+    public Optional<String> getEmail() {
+        return Optional.of(email);
     }
 
     public void setEmail(String email) {
         this.email = email;
     }
 
-    public StatusDto getStatusDto() {
-        return statusDto;
+    public StatusDto getStatus() {
+        return status;
     }
 
-    public void setStatusDto(StatusDto statusDto) {
-        this.statusDto = statusDto;
+    public void setStatus(StatusDto statusDto) {
+        this.status = statusDto;
     }
 
-    public List<SocialNetworkDto> getSocialProfilesDto() {
-        return socialNetworkDtos;
+    public List<SocialNetworkDto> getSocialProfiles() {
+        return socialProfiles;
     }
 
     public void setSocialProfiles(List<SocialNetworkDto> socialNetworkDtos) {
-        this.socialNetworkDtos = socialNetworkDtos;
+        this.socialProfiles = socialNetworkDtos;
     }
 
     /**
      * Данный метод получает клиента и на выходе дает DTO этого клиента, необходим для работы с - StudentDto.java,
+     *
      * @param client - получаемый клиент,
      * @return - возвращаемый клиент.
      */
@@ -118,8 +120,8 @@ public class ClientDtoForAllStudentsPage {
         Optional<String> phoneNumberOptional = client.getPhoneNumber();
         clientDtoForAllStudentsPage.phoneNumber = phoneNumberOptional.orElse(Constants.EMPTY_STRING);
 
-        clientDtoForAllStudentsPage.socialNetworkDtos = SocialNetworkDto.getSocialNetworkDtos(client.getSocialProfiles());
-        clientDtoForAllStudentsPage.statusDto = StatusDto.getStatusDto(client.getStatus());
+        clientDtoForAllStudentsPage.socialProfiles = SocialNetworkDto.getSocialNetworkDtos(client.getSocialProfiles());
+        clientDtoForAllStudentsPage.status = StatusDto.getStatusDto(client.getStatus());
 
         return clientDtoForAllStudentsPage;
     }
@@ -130,4 +132,5 @@ public class ClientDtoForAllStudentsPage {
                 .map(ClientDtoForAllStudentsPage::getClientDtoForAllStudentsPage)
                 .collect(Collectors.toList());
     }
+
 }

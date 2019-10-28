@@ -83,6 +83,7 @@ public class StudentRepositoryImpl implements StudentRepositoryCustom {
         entityManager.createQuery("UPDATE Student s SET s.color = null WHERE s.color IS NOT null").executeUpdate();
     }
 
+    //TODO исправить!!!!
     @Override
     public List<StudentDto> getStudentDtoForAllStudentsPage() {
 

@@ -16,9 +16,7 @@ import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
-import java.time.ZonedDateTime;
-import java.util.List;
-import java.util.Optional;
+import java.util.*;
 
 @Service
 public class StudentServiceImpl extends CommonServiceImpl<Student> implements StudentService {
@@ -71,8 +69,19 @@ public class StudentServiceImpl extends CommonServiceImpl<Student> implements St
     }
 
     @Override
-    public List<Student> getStudentsByStatusId(Long id) {
+    public List<Student> getStudentsByStatusId(Long id) { // status из табл student_status: {Auto-generated, новый студент}
         return studentRepository.getStudentsByStatusId(id);
+    }
+
+    @Override
+    public List<StudentDto> getStudentsByClientStatusNames(String statusNames) { // status из табл status_clients: {Новые, На пробных, Слился...}
+        String[] statuses = statusNames.split(",");
+        Set<StudentDto> studentDtoSet = new HashSet<>();
+        for (String status: statuses) {
+            studentDtoSet.addAll(StudentDto.
+                    getStudentDtoForAllStudentsPage(studentRepository.getStudentsByClientStatusName(status)));
+        }
+        return new ArrayList<>(studentDtoSet);
     }
 
     @Override
@@ -110,10 +119,9 @@ public class StudentServiceImpl extends CommonServiceImpl<Student> implements St
         return studentRepository.getStudentByEmail(email);
     }
 
-    @Override
+    @Override //TODO удалить или оставить?
     public List<StudentDto> getStudentDtoForAllStudentsPage() {
         return studentRepositoryCustom.getStudentDtoForAllStudentsPage();
     }
-
 
 }

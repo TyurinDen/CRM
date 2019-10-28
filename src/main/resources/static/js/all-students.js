@@ -1,6 +1,6 @@
 //Функция фильтрации студентов на странице /student/all по email, phone, slack, vk и направлениям
-$('.checkbox').click(function() {
-    let table, rows, i, status, json;
+$('.checkbox').click(function () {
+    let table, rows, i, status; //, json;
     table = document.getElementById("students-table");
     let filters = document.getElementById("courses_filter").getElementsByClassName("checkbox"); //Фильтры по направлениям
     rows = table.rows;
@@ -33,12 +33,12 @@ $('.checkbox').click(function() {
                     }
                 }
                 //вызываются фильтры по направлениям.
-                for (var j = 0; j < filters.length; j++) {
+                for (let j = 0; j < filters.length; j++) {
                     //Если фильтр активирован
                     if (filters[j].checked === true) {
                         //Ищем в строке название направления. И если не находим
                         if (rows[i].innerHTML.indexOf(filters[j].id) === -1) {
-                            if(i>0) {
+                            if (i > 0) {
                                 //Скрываем строку
                                 rows[i].style.display = 'none';
                             }
@@ -49,35 +49,47 @@ $('.checkbox').click(function() {
         }
     } else {
         for (i = 1; i < rows.length; i++) {
-            status = rows[i].getElementsByTagName("TD")[0];
+            status = rows[i].getElementsByTagName("td")[0];
             if (this.id === status.innerHTML) {
                 rows[i].style.display = this.checked ? '' : 'none';
             }
         }
     }
-    json = '{';
+    let statuses = '';
     $.each($('#filter')[0]['children'][0]['children'], function (k, v) {
-        let input = v.getElementsByTagName("INPUT")[0];
+        let input = v.getElementsByTagName("input")[0];
+        // console.log(input);
+        // console.log(input.dataset.statusId);
         if (input.checked) {
-            json += "'" + input.id + "':'true',";
+            statuses += input.id + ",";
         }
     });
-    json = json.replace(new RegExp(',$'), '}');
+    statuses = statuses.replace(new RegExp(',$'), '');
+    console.warn(statuses);
     $.ajax({
         async: true,
         type: 'POST',
         url: '/rest/admin/user/filters',
-        data: {'filters' : json}
+        data: {'filters': statuses}
+    });
+    $.ajax({
+        // async: true,
+        type: 'POST',
+        url: '/rest/student/get-by-status-name',
+        data: {'statuses': statuses},
+        success: function (data) {
+            console.log(data);
+        }
     });
     calc_info_values();
 });
 //-----------------------------------------------------
 
-$(document).ready(function() {
+$(document).ready(function () {
     if (document.URL.indexOf("student/all") !== -1) {
         renderStudentsTable();
         calc_info_values();
-    };
+    }
     $('figure').imgCheckbox({
         width: 'auto',
         height: 'auto',
@@ -107,11 +119,11 @@ function reInitCheckboxes() {
 }
 
 function renderStudentsTable() {
-    let table, rows, i, status;
-    table = document.getElementById("students-table");
-    rows = table.rows;
-    for (i = 1; i < rows.length; i++) {
-        status = rows[i].getElementsByTagName("TD")[0].innerHTML;
+    // let status;
+    let table = document.getElementById("students-table");
+    let rows = table.rows;
+    for (let i = 1; i < rows.length; i++) {
+        let status = rows[i].getElementsByTagName("td")[0].innerHTML;
         if (isStatusVisible(status)) {
             rows[i].style.display = '';
         } else {
@@ -135,8 +147,8 @@ function isStatusVisible(status) {
 function calc_info_values() {
     try {
         table = document.getElementById("students-table");
-        var sum = 0.0;
-        var count = 0;
+        let sum = 0.0;
+        let count = 0;
         $.each(table.rows, function (k, v) {
             if (v.style.display !== 'none' && v.getElementsByClassName('price-for-student')[0] != null) {
                 sum += parseFloat(v.getElementsByClassName('price-for-student')[0].innerHTML);
@@ -161,22 +173,27 @@ function noteAndSort(button, n, type) {
         sort_table(button, n, type);
     };
     /* Without timeout notification can't be showed*/
-    setTimeout(() => { sorting().then(function() {
-        notification.hide();
-        new Noty({
-            type: 'success',
-            text: '<h5>Сортировка завершена</h5>',
-            timeout: '1000',
-            progressBar: false,
-            container: '#sortingEnded',
-            callbacks: {
-                onShow: function() {endOfSort.show();},
-                onClose: function() {
-                    endOfSort.hide();
-                    endOfSort.empty()},
-            }
-        }).show();
-    } );}, 10);
+    setTimeout(() => {
+        sorting().then(function () {
+            notification.hide();
+            new Noty({
+                type: 'success',
+                text: '<h5>Сортировка завершена</h5>',
+                timeout: '1000',
+                progressBar: false,
+                container: '#sortingEnded',
+                callbacks: {
+                    onShow: function () {
+                        endOfSort.show();
+                    },
+                    onClose: function () {
+                        endOfSort.hide();
+                        endOfSort.empty()
+                    },
+                }
+            }).show();
+        });
+    }, 10);
 }
 
 var dir = "asc";
@@ -187,8 +204,8 @@ function merge_sort(array, dir) {
         var result = [];
         var il = 0;
         var ir = 0;
-        while (il < left.length && ir < right.length){
-            if (left[il] < right[ir] && dir === "asc"){
+        while (il < left.length && ir < right.length) {
+            if (left[il] < right[ir] && dir === "asc") {
                 result.push(left[il++]);
             } else if (left[il] > right[ir] && dir === "desc") {
                 result.push(left[il++]);
@@ -200,7 +217,7 @@ function merge_sort(array, dir) {
     }
 
     function merge_sort(items) {
-        if (items.length < 2){
+        if (items.length < 2) {
             return items;
         }
         var middle = Math.floor(items.length / 2);
@@ -208,6 +225,7 @@ function merge_sort(array, dir) {
         var right = items.slice(middle);
         return merge(merge_sort(left), merge_sort(right));
     }
+
     return merge_sort(array);
 }
 
@@ -232,7 +250,7 @@ function sort_table(button, n, type) {
         var tagTd = rowsFromTableBody[i].getElementsByTagName("TD")[n];
         arrForSort.push(getValueRow(tagTd, type));
     }
-    var sortedRows =  merge_sort(arrForSort, dir);
+    var sortedRows = merge_sort(arrForSort, dir);
     if (dir === "asc") {
         dir = "desc";
     } else {
@@ -255,7 +273,7 @@ var clickedEndDate = [];
 var clickedPaymentDate = [];
 var lastClickedId = -1;
 
-$('body').on('focus', '[contenteditable]', function() {
+$('body').on('focus', '[contenteditable]', function () {
     if (lastClickedId != -1) {
         $('#trial-end-date_' + lastClickedId).addClass('hidden');
         $('#next-payment-date_' + lastClickedId).addClass('hidden');
@@ -279,13 +297,13 @@ $('body').on('focus', '[contenteditable]', function() {
     }
     const $this = $(this);
     $this.data('before', $this.html());
-}).on('blur paste', '[contenteditable]', function() {
+}).on('blur paste', '[contenteditable]', function () {
     const $this = $(this);
     if ($this.data('before') !== $this.html()) {
         updateStudent(lastClickedId);
         lastClickedId = -1;
     }
-}).on('keydown', '[contenteditable]', function(e) {
+}).on('keydown', '[contenteditable]', function (e) {
     if (e.keyCode === 13) {
         updateStudent(lastClickedId);
         return false;
@@ -351,31 +369,32 @@ $('.payment-date-btn').on('click', function () {
     return false;
 });
 
-    function button_color(button){
+function button_color(button) {
     $(button).colorpicker({format: 'hex'});
-         change_row_color();
+    change_row_color();
 }
 
 
-    function change_row_color() {
-$('.button_color').colorpicker().on('changeColor', function (e) {
-            let id = $(this)[0].value;
-            let color = e.color.toHex();
-            $('#row_' + id).css({'background-color': color});
-        }).on('hidePicker', function (e) {
-            let id = $(this)[0].value;
-            let color = e.color.toHex();
-            $.ajax({
-                async: false,
-                type: 'POST',
-                url: '/rest/student/color/set/' + id,
-                data: {'color': color},
-                success: function () {
-                    $('#row_' + id).css({'background-color': color});
-                }
-            });
+function change_row_color() {
+    $('.button_color').colorpicker().on('changeColor', function (e) {
+        let id = $(this)[0].value;
+        let color = e.color.toHex();
+        $('#row_' + id).css({'background-color': color});
+    }).on('hidePicker', function (e) {
+        let id = $(this)[0].value;
+        let color = e.color.toHex();
+        $.ajax({
+            async: false,
+            type: 'POST',
+            url: '/rest/student/color/set/' + id,
+            data: {'color': color},
+            success: function () {
+                $('#row_' + id).css({'background-color': color});
+            }
         });
-    }
+    });
+}
+
 $('#reset-all-colors-btn').on('click', function () {
     $.ajax({
         async: false,
@@ -383,21 +402,21 @@ $('#reset-all-colors-btn').on('click', function () {
         url: '/rest/student/color/reset/all',
         success: function () {
             $('tr').each(function () {
-                $(this).css({'background-color' : ''});
+                $(this).css({'background-color': ''});
             });
         }
     });
 });
 
 
-  function reset_color(id){
+function reset_color(id) {
     // let id = $(this).val();
     $.ajax({
         async: false,
         type: 'POST',
         url: '/rest/student/color/reset/' + id,
         success: function () {
-            $('#row_' + id).css({'background-color' : ''});
+            $('#row_' + id).css({'background-color': ''});
         }
     });
 }
@@ -434,7 +453,7 @@ $('td').click(function () {
             $('#next-payment-date_' + id).val(dateArr[2] + '-' + dateArr[1] + '-' + dateArr[0]);
             break;
         case 'status':
-            for(i=0; i<clickedStatus.length; i++) {
+            for (i = 0; i < clickedStatus.length; i++) {
                 if (clickedStatus[i] == id) {
                     clickedStatus[i] = '';
                     return;
@@ -463,7 +482,7 @@ $('td').click(function () {
 });
 
 //change dates in table fields
-$("input[type='date']").on('change', function() {
+$("input[type='date']").on('change', function () {
     var field = this.id.substring(0, this.id.lastIndexOf("_"));
     var id = this.id.substring(this.id.lastIndexOf("_") + 1, this.id.length);
     switch (field) {
@@ -492,14 +511,16 @@ $('.student-changing').on('change', function () {
 });
 
 function updateStudent(id) {
-    if (!validate_prices(id)) {return}
+    if (!validate_prices(id)) {
+        return
+    }
     let url = "/rest/student/" + id + "/client";
     $.ajax({
         type: 'GET',
         url: url,
         success: function (client) {
-            let trialDateArr = $("#trialEndDateValue_"+id).text().split('.');
-            let nextPaymentDateArr = $("#nextPaymentDateValue_"+id).text().split('.');
+            let trialDateArr = $("#trialEndDateValue_" + id).text().split('.');
+            let nextPaymentDateArr = $("#nextPaymentDateValue_" + id).text().split('.');
             let trialDate = trialDateArr[2] + '-' + trialDateArr[1] + '-' + trialDateArr[0];
             let nextPayDate = nextPaymentDateArr[2] + '-' + nextPaymentDateArr[1] + '-' + nextPaymentDateArr[0];
             let email_selector = '#' + id + '_notify_email';
@@ -511,15 +532,20 @@ function updateStudent(id) {
             let vk_notify = $(vk_selector).prop('checked');
             let slack_notify = $(slack_selector).prop('checked');
             let data = {
-                id : id,
-                client : {id : client.id, name : $("#name_"+id).text(), lastName : $("#lastName_"+id).text(), email : $("#email_"+id).text()},
-                trialEndDate : trialDate + "T00:00:00",
-                nextPaymentDate : nextPayDate + "T00:00:00",
-                price : $("#price_"+id).text(),
-                paymentAmount : $("#paymentAmount_"+id).text(),
-                payLater : $("#payLater_"+id).text(),
-                status : {status : $("#statusValue_"+id).text()},
-                notes : $("#notes_"+id).text(),
+                id: id,
+                client: {
+                    id: client.id,
+                    name: $("#name_" + id).text(),
+                    lastName: $("#lastName_" + id).text(),
+                    email: $("#email_" + id).text()
+                },
+                trialEndDate: trialDate + "T00:00:00",
+                nextPaymentDate: nextPayDate + "T00:00:00",
+                price: $("#price_" + id).text(),
+                paymentAmount: $("#paymentAmount_" + id).text(),
+                payLater: $("#payLater_" + id).text(),
+                status: {status: $("#statusValue_" + id).text()},
+                notes: $("#notes_" + id).text(),
                 notifyEmail: email_notify,
                 notifySMS: sms_notify,
                 notifyVK: vk_notify,
@@ -529,7 +555,7 @@ function updateStudent(id) {
             $.ajax({
                 type: 'POST',
                 url: '/rest/student/update',
-                contentType : "application/json; charset=UTF-8",
+                contentType: "application/json; charset=UTF-8",
                 encoding: "UTF-8",
                 dataType: "JSON",
                 data: JSON.stringify(data),
@@ -558,7 +584,7 @@ $('#main-modal-window').on('hidden.bs.modal', function () {
 });
 
 //go to student info page
-    function button_info(button) {
+function button_info(button) {
     var clientId = button.value;
     changeUrl('/student/all', clientId);
     var currentModal = $('#main-modal-window');
@@ -568,7 +594,7 @@ $('#main-modal-window').on('hidden.bs.modal', function () {
 }
 
 //delete student by id
-    function button_delete(button){
+function button_delete(button) {
     let currentModal = $('#student-reject-modal');
     currentModal.data('reject-student-id', button.value);
     $('#reject-reason').val('');
@@ -584,7 +610,7 @@ $('#reject_student').on('click', function () {
         url: '/rest/student/reject/' + id,
         encoding: "UTF-8",
         data: {
-            "message" : message
+            "message": message
         },
         success: function (response) {
             $('#student-reject-modal').modal('hide');
@@ -601,9 +627,9 @@ $('#reject_student').on('click', function () {
 
 //Check prices consistency
 function validate_prices(id) {
-    let price = parseInt($("#price_"+id).text());
-    let payment = parseInt($("#paymentAmount_"+id).text());
-    let pay_later = parseInt($("#payLater_"+id).text());
+    let price = parseInt($("#price_" + id).text());
+    let payment = parseInt($("#paymentAmount_" + id).text());
+    let pay_later = parseInt($("#payLater_" + id).text());
     if (isNaN(price) || isNaN(payment) || isNaN(pay_later)) {
         alert('Введите цену!');
         return false;
@@ -617,15 +643,15 @@ function validate_prices(id) {
 }
 
 //All available notification checkbox id patterns
-const notifications = ['_notify_email','_notify_sms','_notify_vk','_notify_slack'];
+const notifications = ['_notify_email', '_notify_sms', '_notify_vk', '_notify_slack'];
 
 //Check/uncheck all notifications
-$('.notifier_all').click(function() {
+$('.notifier_all').click(function () {
     let id = this.value;
     let checked = this.checked;
     for (let prefix of notifications) {
         let selector = '#' + id + prefix;
-        if(($(selector).prop('disabled') == false) && ($(selector).prop('checked') != checked)) {
+        if (($(selector).prop('disabled') == false) && ($(selector).prop('checked') != checked)) {
             $(selector).prop('checked', checked);
             update_notification(selector.substr(1), checked);
         }
@@ -645,14 +671,14 @@ $('.notifier_all_img').on('click', function () {
     if (checked) {
         for (let prefix of notifications) {
             let selector = '#' + id + prefix;
-            if(!$(selector).prop('disabled')) {
+            if (!$(selector).prop('disabled')) {
                 $(selector).prop('checked', false);
             }
         }
     } else {
         for (let prefix of notifications) {
             let selector = '#' + id + prefix;
-            if(!$(selector).prop('disabled')) {
+            if (!$(selector).prop('disabled')) {
                 $(selector).prop('checked', true);
             }
         }
@@ -663,16 +689,16 @@ $('.notifier_all_img').on('click', function () {
 
 //Notification checkbox change action
 //Page needs to be reloaded to update Select All checkbox?
-$('.notifier').change(function() {
+$('.notifier').change(function () {
     let id = this.id;
     let checked = this.checked;
     let selector_all = '#' + this.value + '_notify_all';
     update_notification(id, checked);
-    if(checked) {
+    if (checked) {
         let result = true;
         for (let prefix of notifications) {
             let selector = '#' + this.value + prefix;
-            if(!$(selector).prop('disabled')) {
+            if (!$(selector).prop('disabled')) {
                 result = $(selector).prop('checked') && result;
             }
         }
@@ -685,7 +711,7 @@ $('.notifier').change(function() {
 //Notification change
 //Async request not working in loop?
 function update_notification(checkbox_id, checked) {
-    let url = "/rest/student/" + checkbox_id.replace(new RegExp('_', 'g'),'/');
+    let url = "/rest/student/" + checkbox_id.replace(new RegExp('_', 'g'), '/');
     $.ajax({
         type: 'POST',
         url: url,

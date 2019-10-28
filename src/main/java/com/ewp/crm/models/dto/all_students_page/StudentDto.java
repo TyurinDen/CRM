@@ -1,41 +1,41 @@
 package com.ewp.crm.models.dto.all_students_page;
 
 import com.ewp.crm.models.Student;
-import com.ewp.crm.models.StudentStatus;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Objects;
 import java.util.stream.Collectors;
 
 /**
  * Данный класс предназначен для отображения информации о студенитах на вкладке "Все студенты"
  * Поля, которые есть в all-students-table.html:
- *  * 1. id
- *  * 2. color
- *  * 3. client:
- *  *      a) status
- *  *      b) name
- *  *      c) lastName
- *  *      d) email
- *  *      e) phoneNumber
- *  *      f) socialProfiles
- *  *      g) id
- *  * 4. trialEndDate
- *  * 5. nextPaymentDate
- *  * 6. price
- *  * 7. paymentAmount
- *  * 8. payLater
- *  * 9. notifyEmail
- *  * 10. notifySms
- *  * 11. notifyVK
- *  * 12. notifySlack
- *  * 13. notes
+ * * 1. id
+ * * 2. color
+ * * 3. client:
+ * *      a) status
+ * *      b) name
+ * *      c) lastName
+ * *      d) email
+ * *      e) phoneNumber
+ * *      f) socialProfiles
+ * *      g) id
+ * * 4. trialEndDate
+ * * 5. nextPaymentDate
+ * * 6. price
+ * * 7. paymentAmount
+ * * 8. payLater
+ * * 9. notifyEmail
+ * * 10. notifySms
+ * * 11. notifyVK
+ * * 12. notifySlack
+ * * 13. notes
  */
 public class StudentDto {
 
     private long id;
-    private ClientDtoForAllStudentsPage clientDtoForAllStudentsPage;
+    private ClientDtoForAllStudentsPage client;
     private String notes;
     private String color;
     private LocalDateTime trialEndDate;
@@ -47,27 +47,18 @@ public class StudentDto {
     private boolean notifySMS = false;
     private boolean notifyVK = false;
     private boolean notifySlack = false;
-    private StudentStatusDto studentStatusDto;
+    private StudentStatusDto status;
 
     public StudentDto() {
+
     }
 
-    public StudentDto(long id,
-                      ClientDtoForAllStudentsPage clientDtoForAllStudentsPage,
-                      String notes,
-                      String color,
-                      LocalDateTime trialEndDate,
-                      LocalDateTime nextPaymentDate,
-                      BigDecimal price,
-                      BigDecimal paymentAmount,
-                      BigDecimal payLater,
-                      boolean notifyEmail,
-                      boolean notifySMS,
-                      boolean notifyVK,
-                      boolean notifySlack,
+    public StudentDto(long id, ClientDtoForAllStudentsPage clientDtoForAllStudentsPage, String notes, String color,
+                      LocalDateTime trialEndDate, LocalDateTime nextPaymentDate, BigDecimal price, BigDecimal paymentAmount,
+                      BigDecimal payLater, boolean notifyEmail, boolean notifySMS, boolean notifyVK, boolean notifySlack,
                       StudentStatusDto studentStatusDto) {
         this.id = id;
-        this.clientDtoForAllStudentsPage = clientDtoForAllStudentsPage;
+        this.client = clientDtoForAllStudentsPage;
         this.notes = notes;
         this.color = color;
         this.trialEndDate = trialEndDate;
@@ -79,7 +70,7 @@ public class StudentDto {
         this.notifySMS = notifySMS;
         this.notifyVK = notifyVK;
         this.notifySlack = notifySlack;
-        this.studentStatusDto = studentStatusDto;
+        this.status = studentStatusDto;
     }
 
     public long getId() {
@@ -90,12 +81,12 @@ public class StudentDto {
         this.id = id;
     }
 
-    public ClientDtoForAllStudentsPage getClientDtoForAllStudentsPage() {
-        return clientDtoForAllStudentsPage;
+    public ClientDtoForAllStudentsPage getClient() {
+        return client;
     }
 
-    public void setClientDtoForAllStudentsPage(ClientDtoForAllStudentsPage clientDtoForAllStudentsPage) {
-        this.clientDtoForAllStudentsPage = clientDtoForAllStudentsPage;
+    public void setClient(ClientDtoForAllStudentsPage clientDtoForAllStudentsPage) {
+        this.client = clientDtoForAllStudentsPage;
     }
 
     public String getNotes() {
@@ -186,25 +177,24 @@ public class StudentDto {
         this.notifySlack = notifySlack;
     }
 
-    public StudentStatusDto getStudentStatusDto() {
-        return studentStatusDto;
+    public StudentStatusDto getStatus() {
+        return status;
     }
 
-    public void setStudentStatusDto(StudentStatus studentStatus) {
-        this.studentStatusDto = studentStatusDto;
+    public void setStatus(StudentStatusDto studentStatusDto) {
+        this.status = studentStatusDto;
     }
 
     /**
-     * Данный класс предназначен для работы со страницей "Все студенты"
+     * Метод создает StudentDto из Student для страницы all-student-table (/student/all)
+     *
      * @param student - принимаемый студент,
-     * @return - возвращаемый студент.
+     * @return - возвращаемый дто.
      */
     public static StudentDto getStudentDtoForAllStudentsPage(Student student) {
         StudentDto studentDto = new StudentDto();
-
         studentDto.id = student.getId();
-        studentDto.clientDtoForAllStudentsPage =
-                ClientDtoForAllStudentsPage.getClientDtoForAllStudentsPage(student.getClient());
+        studentDto.client = ClientDtoForAllStudentsPage.getClientDtoForAllStudentsPage(student.getClient());
         studentDto.notes = student.getNotes();
         studentDto.color = student.getColor();
         studentDto.trialEndDate = student.getTrialEndDate();
@@ -216,8 +206,7 @@ public class StudentDto {
         studentDto.notifySMS = student.isNotifySMS();
         studentDto.notifyVK = student.isNotifyVK();
         studentDto.notifySlack = student.isNotifySlack();
-        studentDto.studentStatusDto = StudentStatusDto.getStudentStatusDto(student.getStatus());
-
+        studentDto.status = StudentStatusDto.getStudentStatusDto(student.getStatus());
         return studentDto;
     }
 
@@ -227,4 +216,18 @@ public class StudentDto {
                 .map(StudentDto::getStudentDtoForAllStudentsPage)
                 .collect(Collectors.toList());
     }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        StudentDto that = (StudentDto) o;
+        return id == that.id;
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(id);
+    }
+
 }

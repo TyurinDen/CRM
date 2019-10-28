@@ -24,7 +24,7 @@ public class Student implements Diffable<Student> {
     private Long id;
 
     /**
-     * Клиент, который стал студентом (изначально клиент студентом не является)
+     * ID клиента, который стал студентом (начал учиться). Изначально клиент студентом не является
      */
     @JoinColumn (name = "client_id")
     @OneToOne

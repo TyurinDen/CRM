@@ -5,7 +5,6 @@ import com.ewp.crm.models.SocialProfile.SocialNetworkType;
 import com.ewp.crm.models.Student;
 import com.ewp.crm.models.dto.all_students_page.StudentDto;
 
-import java.time.ZonedDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -15,7 +14,16 @@ public interface StudentService extends CommonService<Student> {
 
     Optional<Student> addStudentForClient(Client client);
 
-    List<Student> getStudentsByStatusId(Long id);
+    List<Student> getStudentsByStatusId(Long id); // status из табл student_status: {Auto-generated, новый студент}
+
+    /**
+     * Возвращает список дтошек для страницы all-student-table (/student/all)
+     * по названию статуса клиента: {Новые, На пробных, Слился и тд}.
+     *
+     * @param statusNames строка с  названиями статусов клиентов через зяпятую.
+     * Таблицы: client, status, status_clients.
+     */
+    List<StudentDto> getStudentsByClientStatusNames(String statusNames);
 
     List<Student> getStudentsWithTodayNotificationsEnabled();
 
@@ -31,5 +39,7 @@ public interface StudentService extends CommonService<Student> {
 
     Student getStudentByEmail(String email);
 
+    //TODO удалить или оставить?
     List<StudentDto> getStudentDtoForAllStudentsPage();
+
 }

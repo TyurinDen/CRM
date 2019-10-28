@@ -1,6 +1,7 @@
 package com.ewp.crm.controllers;
 
 import com.ewp.crm.models.User;
+import com.ewp.crm.models.dto.all_students_page.StudentDto;
 import com.ewp.crm.service.interfaces.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -11,11 +12,13 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.servlet.ModelAndView;
 
+import java.util.List;
+
 @Controller
 @RequestMapping("/student")
 public class StudentController {
 
-    private static Logger logger = LoggerFactory.getLogger(ClientController.class);
+    private static Logger logger = LoggerFactory.getLogger(ClientController.class); //TODO удалить или оставить?
 
     private final StudentService studentService;
     private final StatusService statusService;
@@ -26,7 +29,8 @@ public class StudentController {
 
     @Autowired
     public StudentController(StudentService studentService, StatusService statusService, SlackService slackService,
-                             MessageTemplateService messageTemplateService, ProjectPropertiesService projectPropertiesService, CourseService courseService) {
+                             MessageTemplateService messageTemplateService,
+                             ProjectPropertiesService projectPropertiesService, CourseService courseService) {
         this.slackService = slackService;
         this.studentService = studentService;
         this.statusService = statusService;
@@ -38,14 +42,19 @@ public class StudentController {
     @GetMapping(value = "/all")
     public ModelAndView showAllStudents(@AuthenticationPrincipal User userFromSession) {
         ModelAndView modelAndView = new ModelAndView("all-students-table");
-        modelAndView.addObject("filters", userFromSession.getStudentPageFilters() != null ? userFromSession.getStudentPageFilters() : "");
+        modelAndView.addObject("filters", userFromSession.getStudentPageFilters() != null
+                ? userFromSession.getStudentPageFilters() : "");
+        List<StudentDto> studentDtoList = studentService.getStudentsByClientStatusNames(
+                userFromSession.getStudentPageFilters());
         Long defaultStatusId = projectPropertiesService.getOrCreate().getClientRejectStudentStatus();
         if (defaultStatusId != null) {
             statusService.get(defaultStatusId).ifPresent(s -> modelAndView.addObject("defaultStatusForRejectedStudent", s));
         } else {
             modelAndView.addObject("defaultStatusForRejectedStudent", "");
         }
-        modelAndView.addObject("students", studentService.getAll()); //Надо закомментировать, так как будет использоваться рест!
+        // Список студентов для начальной загрузки страницы all-student-table (/student/all) с фильтрами из БД
+        // table user:student_page_filters
+        modelAndView.addObject("students", studentDtoList);
         modelAndView.addObject("statuses", statusService.getAll());
         modelAndView.addObject("courses", courseService.getAll());
         modelAndView.addObject("emailTmpl", messageTemplateService.getAll());
