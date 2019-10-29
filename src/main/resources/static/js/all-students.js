@@ -72,13 +72,27 @@ $('.checkbox').click(function () {
         url: '/rest/admin/user/filters',
         data: {'filters': statuses}
     });
+
+    let students;
     $.ajax({
-        // async: true,
+        async: true,
         type: 'POST',
         url: '/rest/student/get-by-status-name',
         data: {'statuses': statuses},
         success: function (data) {
             console.log(data);
+            for (let i = 0; i < data.length; i++) {
+                let rowId = 'row_' + data[i].id;
+                console.log(rowId);
+                let newRow = '<tr id=' + rowId + '></tr>';
+                console.log(newRow);
+                $('#' + rowId).css("background", "yellow");
+                // $('<td><label><input type="radio" id="location-radio" value="test" />Test</label></td>').appendTo(rowId);
+                // $(rowId).attr("style", "background-color" + data.color);
+                // let rowStyle = th:style="'display:none; '+${student.color != null ? 'background-color: ' + student.color : '';
+                // let newRow = "<tr><td><input type='checkbox' name='record'></td><td>" + "NAME" + "</td><td>" + "EMAIL" + "</td></tr>";
+                $("#students-table tbody:first").append(newRow);
+            }
         }
     });
     calc_info_values();
