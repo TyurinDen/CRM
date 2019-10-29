@@ -73,25 +73,31 @@ $('.checkbox').click(function () {
         data: {'filters': statuses}
     });
 
-    let students;
+    // let students;
     $.ajax({
         async: true,
         type: 'POST',
         url: '/rest/student/get-by-status-name',
         data: {'statuses': statuses},
-        success: function (data) {
-            console.log(data);
-            for (let i = 0; i < data.length; i++) {
-                let rowId = 'row_' + data[i].id;
-                console.log(rowId);
-                let newRow = '<tr id=' + rowId + '></tr>';
-                console.log(newRow);
-                $('#' + rowId).css("background", "yellow");
-                // $('<td><label><input type="radio" id="location-radio" value="test" />Test</label></td>').appendTo(rowId);
-                // $(rowId).attr("style", "background-color" + data.color);
-                // let rowStyle = th:style="'display:none; '+${student.color != null ? 'background-color: ' + student.color : '';
-                // let newRow = "<tr><td><input type='checkbox' name='record'></td><td>" + "NAME" + "</td><td>" + "EMAIL" + "</td></tr>";
-                $("#students-table tbody:first").append(newRow);
+        success: function (students) {
+            console.log(students);
+            let studentTableBody = $("#students-table tbody:first").html(''); // получаем объект jquery - tbody таблицы students-table
+            for (let i = 0; i < students.length; i++) {
+                let rowId = 'row_' + students[i].id;
+                let newRow = '<tr id="' + rowId + '"></tr>';
+                studentTableBody.append(newRow);
+                let row = $('#' + rowId); // получаем объект jquery - строку таблицы
+
+                let cellId = 'status_' + students[i].id;
+                let newCell = '<td id="' + cellId + '"></td>';
+                row.append(newCell);
+                let cell = $('#' + cellId); // получаем объект jquery - ячейку таблицы
+                cell.text(students[i].client.status.name); // добавить аттрибут hidden
+
+                // next cell
+                //<td th:id="${'lastName_' + student.id}" th:text="${student.client.lastName}"></td>
+
+                row.css("background", students[i].color); //можно сделать в самом конце
             }
         }
     });
